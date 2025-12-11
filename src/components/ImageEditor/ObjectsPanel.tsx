@@ -1,0 +1,354 @@
+"use client"
+
+import { useRef, useEffect, useState, useCallback } from "react"
+import { Plus, Trash2, X } from "lucide-react"
+import { EditorObject, ObjectSheet } from "./types"
+
+interface ObjectsPanelProps {
+  objects: EditorObject[]
+  selectedObjectId: string | null
+  onAddObject: (name: string) => void
+  onDeleteObject: (objectId: string) => void
+  onSelectObject: (objectId: string) => void
+  onRenameObject: (objectId: string, newName: string) => void
+  onAddSheet: (objectId: string) => void
+  onDeleteSheet: (objectId: string, sheetId: string) => void
+  onSetActiveSheet: (objectId: string, sheetIndex: number) => void
+  onUpdateSheetImage: (objectId: string, sheetId: string, imageUrl: string) => void
+  onUpdateSheetTransform: (objectId: string, sheetId: string, transform: { x?: number; y?: number; width?: number; height?: number }) => void
+}
+
+function SheetCanvasEditor({
+  sheet,
+  objectId,
+  onUpdateSheetImage,
+  onUpdateSheetTransform,
+}: {
+  sheet: ObjectSheet
+  objectId: string
+  onUpdateSheetImage: (objectId: string, sheetId: string, imageUrl: string) => void
+  onUpdateSheetTransform: (objectId: string, sheetId: string, transform: { x?: number; y?: number; width?: number; height?: number }) => void
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [isResizing, setIsResizing] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [image, setImage] = useState<HTMLImageElement | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const canvasWidth = 200
+  const canvasHeight = 200
+
+  useEffect(() => {
+    if (sheet.imageUrl) {
+      const img = new Image()
+      img.src = sheet.imageUrl
+      img.onload = () => setImage(img)
+    } else {
+      setImage(null)
+    }
+  }, [sheet.imageUrl])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    ctx.fillStyle = "#1a1a2e"
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+
+    ctx.strokeStyle = "#333"
+    ctx.lineWidth = 1
+    for (let i = 0; i < canvasWidth; i += 20) {
+      ctx.beginPath()
+      ctx.moveTo(i, 0)
+      ctx.lineTo(i, canvasHeight)
+      ctx.stroke()
+    }
+    for (let i = 0; i < canvasHeight; i += 20) {
+      ctx.beginPath()
+      ctx.moveTo(0, i)
+      ctx.lineTo(canvasWidth, i)
+      ctx.stroke()
+    }
+
+    if (image) {
+      ctx.drawImage(image, sheet.imageX, sheet.imageY, sheet.imageWidth, sheet.imageHeight)
+
+      ctx.strokeStyle = "#00d4ff"
+      ctx.lineWidth = 2
+      ctx.strokeRect(sheet.imageX, sheet.imageY, sheet.imageWidth, sheet.imageHeight)
+
+      ctx.fillStyle = "#00d4ff"
+      ctx.fillRect(sheet.imageX + sheet.imageWidth - 6, sheet.imageY + sheet.imageHeight - 6, 12, 12)
+    }
+  }, [image, sheet.imageX, sheet.imageY, sheet.imageWidth, sheet.imageHeight])
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!image) return
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+
+    const resizeX = sheet.imageX + sheet.imageWidth - 6
+    const resizeY = sheet.imageY + sheet.imageHeight - 6
+    if (x >= resizeX && x <= resizeX + 12 && y >= resizeY && y <= resizeY + 12) {
+      setIsResizing(true)
+      setDragStart({ x, y })
+      return
+    }
+
+    if (
+      x >= sheet.imageX &&
+      x <= sheet.imageX + sheet.imageWidth &&
+      y >= sheet.imageY &&
+      y <= sheet.imageY + sheet.imageHeight
+    ) {
+      setIsDragging(true)
+      setDragStart({ x: x - sheet.imageX, y: y - sheet.imageY })
+    }
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging && !isResizing) return
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+
+    if (isDragging) {
+      const newX = Math.max(0, Math.min(canvasWidth - sheet.imageWidth, x - dragStart.x))
+      const newY = Math.max(0, Math.min(canvasHeight - sheet.imageHeight, y - dragStart.y))
+      onUpdateSheetTransform(objectId, sheet.id, { x: newX, y: newY })
+    } else if (isResizing) {
+      const newWidth = Math.max(20, x - sheet.imageX)
+      const newHeight = Math.max(20, y - sheet.imageY)
+      onUpdateSheetTransform(objectId, sheet.id, { width: newWidth, height: newHeight })
+    }
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+    setIsResizing(false)
+  }
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const imageUrl = event.target?.result as string
+      onUpdateSheetImage(objectId, sheet.id, imageUrl)
+      onUpdateSheetTransform(objectId, sheet.id, { x: 20, y: 20, width: 160, height: 160 })
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ""
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <canvas
+        ref={canvasRef}
+        width={canvasWidth}
+        height={canvasHeight}
+        className="border border-[#333] rounded cursor-crosshair"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      />
+      {!image && (
+        <div
+          className="absolute inset-0 flex items-center justify-center cursor-pointer"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <div className="text-center text-gray-500">
+            <Plus className="w-8 h-8 mx-auto mb-1" />
+            <span className="text-xs">Add Image</span>
+          </div>
+        </div>
+      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileUpload}
+      />
+    </div>
+  )
+}
+
+export function ObjectsPanel({
+  objects,
+  selectedObjectId,
+  onAddObject,
+  onDeleteObject,
+  onSelectObject,
+  onRenameObject,
+  onAddSheet,
+  onDeleteSheet,
+  onSetActiveSheet,
+  onUpdateSheetImage,
+  onUpdateSheetTransform,
+}: ObjectsPanelProps) {
+  const [newObjectName, setNewObjectName] = useState("")
+  const [editingObjectId, setEditingObjectId] = useState<string | null>(null)
+  const [editName, setEditName] = useState("")
+
+  const selectedObject = objects.find((o) => o.id === selectedObjectId)
+
+  const handleAddObject = () => {
+    if (newObjectName.trim()) {
+      onAddObject(newObjectName.trim())
+      setNewObjectName("")
+    }
+  }
+
+  const handleStartEdit = (obj: EditorObject) => {
+    setEditingObjectId(obj.id)
+    setEditName(obj.name)
+  }
+
+  const handleSaveEdit = () => {
+    if (editingObjectId && editName.trim()) {
+      onRenameObject(editingObjectId, editName.trim())
+    }
+    setEditingObjectId(null)
+    setEditName("")
+  }
+
+  return (
+    <div className="h-64 bg-[#1a1a2e] border-t border-[#2a2a4a] flex">
+      <div className="w-48 border-r border-[#2a2a4a] flex flex-col">
+        <div className="p-2 border-b border-[#2a2a4a]">
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Objects</span>
+        </div>
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {objects.map((obj) => (
+            <div
+              key={obj.id}
+              className={`px-2 py-1.5 rounded cursor-pointer text-sm flex items-center justify-between group ${
+                selectedObjectId === obj.id ? "bg-[#00d4ff]/20 text-[#00d4ff]" : "text-gray-300 hover:bg-[#2a2a4a]"
+              }`}
+              onClick={() => onSelectObject(obj.id)}
+              onDoubleClick={() => handleStartEdit(obj)}
+            >
+              {editingObjectId === obj.id ? (
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onBlur={handleSaveEdit}
+                  onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
+                  className="bg-transparent border-b border-[#00d4ff] outline-none w-full text-sm"
+                  autoFocus
+                />
+              ) : (
+                <>
+                  <span className="truncate">- {obj.name}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDeleteObject(obj.id)
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-400"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="p-2 border-t border-[#2a2a4a]">
+          <div className="flex gap-1">
+            <input
+              type="text"
+              value={newObjectName}
+              onChange={(e) => setNewObjectName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddObject()}
+              placeholder="New object..."
+              className="flex-1 bg-[#0f0f1a] border border-[#2a2a4a] rounded px-2 py-1 text-xs text-white placeholder-gray-500 outline-none focus:border-[#00d4ff]"
+            />
+            <button
+              onClick={handleAddObject}
+              className="p-1 bg-[#00d4ff] text-black rounded hover:bg-[#00b8e0]"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {selectedObject && (
+        <>
+          <div className="w-28 border-r border-[#2a2a4a] flex flex-col">
+            <div className="p-2 border-b border-[#2a2a4a] flex items-center justify-between">
+              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Sheets</span>
+              <button
+                onClick={() => onAddSheet(selectedObject.id)}
+                className="p-0.5 text-gray-400 hover:text-[#00d4ff]"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {selectedObject.sheets.map((sheet, idx) => (
+                <div
+                  key={sheet.id}
+                  className={`px-2 py-1.5 rounded cursor-pointer text-sm flex items-center justify-between group ${
+                    selectedObject.activeSheetIndex === idx ? "bg-[#00d4ff]/20 text-[#00d4ff]" : "text-gray-300 hover:bg-[#2a2a4a]"
+                  }`}
+                  onClick={() => onSetActiveSheet(selectedObject.id, idx)}
+                >
+                  <span>Sheet {idx + 1}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDeleteSheet(selectedObject.id, sheet.id)
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-400"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              {selectedObject.sheets.length === 0 && (
+                <div className="text-xs text-gray-500 text-center py-2">No sheets</div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex-1 p-3 flex flex-col">
+            <div className="text-xs text-gray-400 mb-2">
+              {selectedObject.sheets.length > 0
+                ? `Sheet ${selectedObject.activeSheetIndex + 1} - Move & Resize`
+                : "Add a sheet to start"}
+            </div>
+            {selectedObject.sheets[selectedObject.activeSheetIndex] && (
+              <SheetCanvasEditor
+                sheet={selectedObject.sheets[selectedObject.activeSheetIndex]}
+                objectId={selectedObject.id}
+                onUpdateSheetImage={onUpdateSheetImage}
+                onUpdateSheetTransform={onUpdateSheetTransform}
+              />
+            )}
+          </div>
+        </>
+      )}
+
+      {!selectedObject && (
+        <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
+          Select an object to edit sheets
+        </div>
+      )}
+    </div>
+  )
+}
