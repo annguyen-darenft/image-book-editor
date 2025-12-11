@@ -3,8 +3,14 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import * as fabric from "fabric"
 import { Button } from "@/components/ui/button"
-import { Upload, Trash2, ChevronUp, ChevronDown, Download, ZoomIn, ZoomOut, RotateCcw, Eraser } from "lucide-react"
+import { Upload, Trash2, ChevronUp, ChevronDown, Download, ZoomIn, ZoomOut, RotateCcw, Eraser, LayoutGrid, Plus, ChevronLeft, ChevronRight, BookOpen, X } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import Link from "next/link"
 
 interface Layer {
@@ -14,6 +20,26 @@ interface Layer {
   visible: boolean
 }
 
+type LayoutPreset = {
+  name: string
+  width: number
+  height: number
+}
+
+interface PageData {
+  id: string
+  name: string
+  canvasJSON: string
+  thumbnail: string
+  layers: Layer[]
+}
+
+const LAYOUT_PRESETS: LayoutPreset[] = [
+  { name: "Square", width: 1000, height: 1000 },
+  { name: "A4 Portrait", width: 794, height: 1123 },
+  { name: "A4 Landscape", width: 1123, height: 794 },
+]
+
 export function ImageEditor() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -21,7 +47,12 @@ export function ImageEditor() {
   const [layers, setLayers] = useState<Layer[]>([])
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
+  const [currentLayout, setCurrentLayout] = useState<LayoutPreset | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [pages, setPages] = useState<PageData[]>([])
+  const [currentPageIndex, setCurrentPageIndex] = useState(0)
+  const [isInitialized, setIsInitialized] = useState(false)
 
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return
@@ -30,7 +61,7 @@ export function ImageEditor() {
     const c = new fabric.Canvas(canvasRef.current, {
       width: container.clientWidth,
       height: container.clientHeight,
-      backgroundColor: "#1a1a2e",
+      backgroundColor: "#FFF",
       selection: true,
       preserveObjectStacking: true,
     })
@@ -56,6 +87,7 @@ export function ImageEditor() {
     })
 
     setCanvas(c)
+    setIsInitialized(true)
 
     const handleResize = () => {
       c.setDimensions({
@@ -100,6 +132,210 @@ export function ImageEditor() {
       setSelectedLayerId(null)
     })
   }, [canvas, layers])
+
+  useEffect(() => {
+    if (canvas && isInitialized && pages.length === 0) {
+      const initialPage: PageData = {
+        id: `page-${Date.now()}`,
+        name: "Page 1",
+        canvasJSON: "",
+        thumbnail: "",
+        layers: [],
+      }
+      setPages([initialPage])
+      applyLayout(LAYOUT_PRESETS[0])
+    }
+  }, [canvas, isInitialized, pages.length])
+
+  const saveCurrentPage = useCallback(() => {
+    if (!canvas || pages.length === 0) return
+
+    const json = JSON.stringify(canvas.toJSON())
+    const thumbnail = canvas.toDataURL({
+      format: "png",
+      quality: 0.3,
+      multiplier: 0.2,
+    })
+
+    setPages((prev) =>
+      prev.map((page, idx) =>
+        idx === currentPageIndex
+          ? { ...page, canvasJSON: json, thumbnail, layers: [...layers] }
+          : page
+      )
+    )
+  }, [canvas, currentPageIndex, layers, pages.length])
+
+  const loadPage = useCallback(
+    async (pageIndex: number) => {
+      if (!canvas || pageIndex < 0 || pageIndex >= pages.length) return
+
+      const page = pages[pageIndex]
+
+      canvas.clear()
+      canvas.backgroundColor = "#FFF"
+
+      if (page.canvasJSON) {
+        await canvas.loadFromJSON(page.canvasJSON)
+      }
+
+      canvas.renderAll()
+      setLayers(page.layers || [])
+      setSelectedLayerId(null)
+      setCurrentPageIndex(pageIndex)
+    },
+    [canvas, pages]
+  )
+
+  const addPage = useCallback(() => {
+    if (!canvas) return
+
+    saveCurrentPage()
+
+    const newPage: PageData = {
+      id: `page-${Date.now()}`,
+      name: `Page ${pages.length + 1}`,
+      canvasJSON: "",
+      thumbnail: "",
+      layers: [],
+    }
+
+    setPages((prev) => [...prev, newPage])
+
+    setTimeout(() => {
+      canvas.clear()
+      canvas.backgroundColor = "#FFF"
+      canvas.renderAll()
+      setLayers([])
+      setSelectedLayerId(null)
+      setCurrentPageIndex(pages.length)
+    }, 50)
+  }, [canvas, pages.length, saveCurrentPage])
+
+  const deletePage = useCallback(
+    (pageIndex: number) => {
+      if (pages.length <= 1) return
+
+      saveCurrentPage()
+
+      setPages((prev) => prev.filter((_, idx) => idx !== pageIndex))
+
+      if (pageIndex === currentPageIndex) {
+        const newIndex = pageIndex > 0 ? pageIndex - 1 : 0
+        setTimeout(() => loadPage(newIndex), 50)
+      } else if (pageIndex < currentPageIndex) {
+        setCurrentPageIndex((prev) => prev - 1)
+      }
+    },
+    [pages.length, currentPageIndex, saveCurrentPage, loadPage]
+  )
+
+  const switchPage = useCallback(
+    (pageIndex: number) => {
+      if (pageIndex === currentPageIndex || !canvas) return
+
+      saveCurrentPage()
+      setTimeout(() => loadPage(pageIndex), 50)
+    },
+    [currentPageIndex, canvas, saveCurrentPage, loadPage]
+  )
+
+  const goToPreviousPage = useCallback(() => {
+    if (currentPageIndex > 0) {
+      switchPage(currentPageIndex - 1)
+    }
+  }, [currentPageIndex, switchPage])
+
+  const goToNextPage = useCallback(() => {
+    if (currentPageIndex < pages.length - 1) {
+      switchPage(currentPageIndex + 1)
+    }
+  }, [currentPageIndex, pages.length, switchPage])
+
+  const exportAllPages = useCallback(async () => {
+    if (!canvas || pages.length === 0) return
+
+    saveCurrentPage()
+
+    for (let i = 0; i < pages.length; i++) {
+      const page = pages[i]
+
+      if (i !== currentPageIndex && page.canvasJSON) {
+        await canvas.loadFromJSON(page.canvasJSON)
+        canvas.renderAll()
+      }
+
+      const dataURL = currentLayout
+        ? canvas.toDataURL({
+            format: "png",
+            quality: 1,
+            left: 0,
+            top: 0,
+            width: currentLayout.width,
+            height: currentLayout.height,
+          })
+        : canvas.toDataURL({
+            format: "png",
+            quality: 1,
+            multiplier: 2,
+          })
+
+      const link = document.createElement("a")
+      link.download = `image-book-page-${i + 1}.png`
+      link.href = dataURL
+      link.click()
+
+      await new Promise((resolve) => setTimeout(resolve, 300))
+    }
+
+    if (pages[currentPageIndex].canvasJSON) {
+      await canvas.loadFromJSON(pages[currentPageIndex].canvasJSON)
+      canvas.renderAll()
+    }
+  }, [canvas, pages, currentPageIndex, currentLayout, saveCurrentPage])
+
+  const applyLayout = useCallback(
+    (preset: LayoutPreset) => {
+      if (!canvas || !containerRef.current) return
+
+      const container = containerRef.current
+      const containerWidth = container.clientWidth
+      const containerHeight = container.clientHeight
+
+      const scale = Math.min(
+        (containerWidth - 40) / preset.width,
+        (containerHeight - 40) / preset.height,
+        1
+      )
+
+      canvas.setDimensions({
+        width: containerWidth,
+        height: containerHeight,
+      })
+
+      canvas.setZoom(scale)
+
+      const offsetX = (containerWidth - preset.width * scale) / 2
+      const offsetY = (containerHeight - preset.height * scale) / 2
+
+      canvas.setViewportTransform([scale, 0, 0, scale, offsetX, offsetY])
+
+      canvas.clipPath = new fabric.Rect({
+        left: 0,
+        top: 0,
+        width: preset.width,
+        height: preset.height,
+        absolutePositioned: true,
+      })
+
+      canvas.backgroundColor = "#FFF"
+      canvas.renderAll()
+
+      setCurrentLayout(preset)
+      setZoom(scale)
+    },
+    [canvas]
+  )
 
   const handleUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -268,17 +504,33 @@ export function ImageEditor() {
   const exportCanvas = useCallback(() => {
     if (!canvas) return
 
-    const dataURL = canvas.toDataURL({
-      format: "png",
-      quality: 1,
-      multiplier: 2,
-    })
+    if (currentLayout) {
+      const dataURL = canvas.toDataURL({
+        format: "png",
+        quality: 1,
+        left: 0,
+        top: 0,
+        width: currentLayout.width,
+        height: currentLayout.height,
+      })
 
-    const link = document.createElement("a")
-    link.download = "canvas-export.png"
-    link.href = dataURL
-    link.click()
-  }, [canvas])
+      const link = document.createElement("a")
+      link.download = `canvas-${currentLayout.name.toLowerCase().replace(" ", "-")}.png`
+      link.href = dataURL
+      link.click()
+    } else {
+      const dataURL = canvas.toDataURL({
+        format: "png",
+        quality: 1,
+        multiplier: 2,
+      })
+
+      const link = document.createElement("a")
+      link.download = "canvas-export.png"
+      link.href = dataURL
+      link.click()
+    }
+  }, [canvas, currentLayout])
 
   return (
     <div className="flex h-screen bg-[#0f0f1a]">
@@ -357,6 +609,88 @@ export function ImageEditor() {
           </div>
         </ScrollArea>
 
+        <div className="p-3 border-t border-[#2a2a4a]">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-[#8b8bab]">Pages</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={addPage}
+              className="h-6 w-6 p-0 text-[#00d4ff] hover:bg-[#2a2a4a]"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2 mb-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={goToPreviousPage}
+              disabled={currentPageIndex === 0}
+              className="h-8 w-8 p-0 text-white hover:bg-[#2a2a4a] disabled:opacity-30"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+
+            <div className="flex-1 text-center">
+              <span className="text-white text-sm font-medium">
+                {currentPageIndex + 1} / {pages.length}
+              </span>
+            </div>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={goToNextPage}
+              disabled={currentPageIndex >= pages.length - 1}
+              className="h-8 w-8 p-0 text-white hover:bg-[#2a2a4a] disabled:opacity-30"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <ScrollArea className="h-24">
+            <div className="flex gap-2 pb-2">
+              {pages.map((page, idx) => (
+                <div
+                  key={page.id}
+                  onClick={() => switchPage(idx)}
+                  className={`relative flex-shrink-0 w-16 h-20 rounded cursor-pointer border-2 transition-all ${
+                    idx === currentPageIndex
+                      ? "border-[#00d4ff]"
+                      : "border-[#2a2a4a] hover:border-[#4a4a6a]"
+                  }`}
+                >
+                  {page.thumbnail ? (
+                    <img
+                      src={page.thumbnail}
+                      alt={page.name}
+                      className="w-full h-full object-cover rounded"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-[#1a1a2e] rounded flex items-center justify-center">
+                      <span className="text-[#4a4a6a] text-xs">{idx + 1}</span>
+                    </div>
+                  )}
+                  {pages.length > 1 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        deletePage(idx)
+                      }}
+                      className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:opacity-100"
+                      style={{ opacity: 1 }}
+                    >
+                      <X className="w-3 h-3 text-white" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+
         <div className="p-4 border-t border-[#2a2a4a]">
           <input
             ref={fileInputRef}
@@ -379,10 +713,34 @@ export function ImageEditor() {
       <div className="flex-1 flex flex-col">
         <div className="h-14 border-b border-[#2a2a4a] bg-[#16162a] flex items-center justify-between px-4">
           <h1 className="text-xl font-bold bg-gradient-to-r from-[#00d4ff] to-[#00ff88] bg-clip-text text-transparent">
-            Image Editor
+            Image Book Editor
           </h1>
 
           <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-[#3a3a5a] gap-2"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                  {currentLayout ? currentLayout.name : "Layout"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="bg-[#16162a] border-[#2a2a4a]">
+                {LAYOUT_PRESETS.map((preset) => (
+                  <DropdownMenuItem
+                    key={preset.name}
+                    onClick={() => applyLayout(preset)}
+                    className="text-white hover:bg-[#2a2a4a] focus:bg-[#2a2a4a] cursor-pointer"
+                  >
+                    {preset.name} ({preset.width}×{preset.height})
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <div className="flex items-center gap-1 bg-[#2a2a4a] rounded-lg p-1">
               <Button
                 variant="ghost"
@@ -419,7 +777,15 @@ export function ImageEditor() {
               className="bg-[#00d4ff] text-black font-semibold hover:bg-[#00d4ff]/80"
             >
               <Download className="w-4 h-4 mr-2" />
-              Export
+              Export Page
+            </Button>
+
+            <Button
+              onClick={exportAllPages}
+              className="bg-[#ff6b00] text-white font-semibold hover:bg-[#ff6b00]/80"
+            >
+              <BookOpen className="w-4 h-4 mr-2" />
+              Export Book
             </Button>
 
             <Link href="/remove-bg">
