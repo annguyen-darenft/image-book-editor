@@ -39,7 +39,6 @@ export interface EditorObject {
 }
 
 export const LAYOUT_PRESETS: LayoutPreset[] = [
-  { name: "Square", width: 1000, height: 1000 },
-  { name: "A4 Portrait", width: 794, height: 1123 },
-  { name: "A4 Landscape", width: 1123, height: 794 },
+  { name: "Square", width: 2000, height: 2000 },
+  { name: "Landscape", width: 4000, height: 2000 },
 ]
