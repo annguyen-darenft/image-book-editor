@@ -323,13 +323,13 @@ export function useImageEditor() {
             const viewHeight = canvasHeight / zoom
 
             const scale = Math.min(
-              (viewWidth * 0.8) / (img.width || 1),
-              (viewHeight * 0.8) / (img.height || 1)
+              (viewWidth * 0.5) / (img.width || 1),
+              (viewHeight * 0.5) / (img.height || 1)
             )
 
             img.scale(scale)
             img.set({
-              left: viewWidth / 2 - ((img.width || 0) * scale) / 2 + index * 20,
+              left: viewWidth / 4 - ((img.width || 0) * scale) / 2 + index * 20,
               top: viewHeight / 2 - ((img.height || 0) * scale) / 2 + index * 20,
               cornerColor: "#00d4ff",
               cornerStrokeColor: "#00d4ff",
