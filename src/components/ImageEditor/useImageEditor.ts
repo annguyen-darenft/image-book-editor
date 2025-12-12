@@ -318,16 +318,19 @@ export function useImageEditor() {
           fabric.FabricImage.fromURL(imgUrl).then((img) => {
             const canvasWidth = canvas.getWidth()
             const canvasHeight = canvas.getHeight()
+            const zoom = canvas.getZoom() || 1
+            const viewWidth = canvasWidth / zoom
+            const viewHeight = canvasHeight / zoom
 
             const scale = Math.min(
-              (canvasWidth * 0.6) / (img.width || 1),
-              (canvasHeight * 0.6) / (img.height || 1)
+              (viewWidth * 0.8) / (img.width || 1),
+              (viewHeight * 0.8) / (img.height || 1)
             )
 
             img.scale(scale)
             img.set({
-              left: canvasWidth / 2 - ((img.width || 0) * scale) / 2 + index * 20,
-              top: canvasHeight / 2 - ((img.height || 0) * scale) / 2 + index * 20,
+              left: viewWidth / 2 - ((img.width || 0) * scale) / 2 + index * 20,
+              top: viewHeight / 2 - ((img.height || 0) * scale) / 2 + index * 20,
               cornerColor: "#00d4ff",
               cornerStrokeColor: "#00d4ff",
               cornerSize: 12,
