@@ -62,7 +62,7 @@ export function PagesSidebar({
         </Button>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 max-h-[calc(100vh-160px)]">
         <div className="flex flex-col gap-2 p-2">
           {pages.map((page, idx) => (
             <div

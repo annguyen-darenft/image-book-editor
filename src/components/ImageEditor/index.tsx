@@ -71,22 +71,21 @@ export function ImageEditor() {
           />
 
           <div className="flex-1 flex flex-col">
-            <CanvasArea containerRef={containerRef} canvasRef={canvasRef} />
-          </div>
-
-          <LayersSidebar
-            layers={layers}
-            selectedLayerId={selectedLayerId}
-            fileInputRef={fileInputRef}
-            onUpload={handleUpload}
-            onSelectLayer={selectLayer}
-            onDeleteLayer={deleteLayer}
-            onMoveLayer={moveLayer}
-            onToggleVisibility={toggleVisibility}
-          />
-        </div>
-
-        <ObjectsPanel
+            <div className="flex-1 flex">
+              <CanvasArea containerRef={containerRef} canvasRef={canvasRef} />
+              <LayersSidebar
+                layers={layers}
+                selectedLayerId={selectedLayerId}
+                fileInputRef={fileInputRef}
+                onUpload={handleUpload}
+                onSelectLayer={selectLayer}
+                onDeleteLayer={deleteLayer}
+                onMoveLayer={moveLayer}
+                onToggleVisibility={toggleVisibility}
+              />
+            </div>
+            
+            <ObjectsPanel
               objects={objects}
               selectedObjectId={selectedObjectId}
               onAddObject={addObject}
@@ -99,6 +98,12 @@ export function ImageEditor() {
               onUpdateSheetImage={updateSheetImage}
               onUpdateSheetTransform={updateSheetTransform}
             />
+          </div>
+
+
+        </div>
+
+
       </div>
     </div>
   )

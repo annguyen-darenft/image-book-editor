@@ -49,7 +49,7 @@ export function LayersSidebar({
         </Button>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 max-h-[calc(100vh-390px)]">
         <div className="p-2 space-y-1">
           {layers.length === 0 ? (
             <p className="text-[#6b6b8d] text-sm text-center py-8">
