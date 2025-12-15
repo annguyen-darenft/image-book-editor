@@ -65,7 +65,7 @@ export default function DetectBoundingBoxes() {
     formData.append("objects", objects)
 
     try {
-      const response = await fetch("https://image-edit-api.nft2scan.com/api/image/detect-bounding-boxes", {
+      const response = await fetch("http://14.224.161.49/api/image/detect-bounding-boxes", {
         method: "POST",
         body: formData,
       })
