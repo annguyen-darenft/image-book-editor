@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Download, ZoomIn, ZoomOut, RotateCcw, LayoutGrid, BookOpen } from "lucide-react"
+import { Download, ZoomIn, ZoomOut, RotateCcw, LayoutGrid, BookOpen, Box } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { LayoutPreset, LAYOUT_PRESETS } from "./types"
+import Link from "next/link"
 
 interface HeaderProps {
   currentLayout: LayoutPreset | null
@@ -106,6 +107,13 @@ export function Header({
           <BookOpen className="w-4 h-4 mr-2" />
           Export Book
         </Button>
+
+        <Link href="/detect-bounding-boxes">
+          <Button className="bg-[#9b59b6] text-white font-semibold hover:bg-[#9b59b6]/80">
+            <Box className="w-4 h-4 mr-2" />
+            Detect Boxes
+          </Button>
+        </Link>
       </div>
     </div>
   )
