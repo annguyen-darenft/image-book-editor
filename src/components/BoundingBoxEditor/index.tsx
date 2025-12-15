@@ -120,7 +120,7 @@ export function BoundingBoxEditor() {
       formData.append("objects", JSON.stringify(objects))
 
       const response = await fetch(
-        "https://image-edit-api.nft2scan.com/api/image/detect-bounding-boxes",
+        "http://14.224.161.49/api/image/detect-bounding-boxes",
         {
           method: "POST",
           body: formData,
@@ -133,7 +133,7 @@ export function BoundingBoxEditor() {
 
       const data = await response.json()
       
-      const boxes: BoundingBox[] = data.map((item: any, index: number) => ({
+      const boxes: BoundingBox[] = data.boundingBoxes.map((item: any, index: number) => ({
         id: `box-${Date.now()}-${index}`,
         object: item.object,
         x: item.position.x,

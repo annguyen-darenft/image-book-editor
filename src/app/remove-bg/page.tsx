@@ -50,7 +50,7 @@ export default function RemoveBackgroundPage() {
       formData.append("file", selectedFile)
       formData.append("backgroundColor", backgroundColor)
 
-      const response = await fetch("https://image-edit-api.nft2scan.com/api/image/remove-background", {
+      const response = await fetch("http://14.224.161.49/api/image/remove-background", {
         method: "POST",
         body: formData,
       })
