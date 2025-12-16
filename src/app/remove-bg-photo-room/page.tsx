@@ -196,7 +196,7 @@ export default function RemoveBackgroundPhotoRoom() {
               <Button
                 onClick={() => fileInputRef.current?.click()}
                 variant="outline"
-                className="w-full border-purple-500/40 text-purple-200 hover:text-white hover:bg-purple-500/20"
+                className="w-full border-purple-500/40 text-purple-400 hover:text-white hover:bg-purple-500/20"
               >
                 <Upload className="w-4 h-4 mr-2" />
                 Choose Different Image
@@ -274,7 +274,7 @@ export default function RemoveBackgroundPhotoRoom() {
             <Button
               onClick={resetAll}
               variant="outline"
-              className="border-purple-500/40 text-purple-200 hover:text-white hover:bg-purple-500/20"
+              className="border-purple-500/40 text-purple-400 hover:text-white hover:bg-purple-500/20"
             >
               Reset
             </Button>
