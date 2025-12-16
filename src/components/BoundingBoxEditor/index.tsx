@@ -4,7 +4,7 @@ import { useRef, useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Upload, Plus, Trash2 } from "lucide-react"
+import { Upload, Plus, Trash2, Copy } from "lucide-react"
 
 interface BoundingBox {
   id: string
@@ -341,12 +341,18 @@ export function BoundingBoxEditor() {
     setResizeHandle(null)
   }
 
-  const deleteSelectedBox = () => {
-    if (selectedBoxId) {
-      setBoundingBoxes(boundingBoxes.filter((box) => box.id !== selectedBoxId))
-      setSelectedBoxId(null)
+    const deleteSelectedBox = () => {
+      if (selectedBoxId) {
+        setBoundingBoxes(boundingBoxes.filter((box) => box.id !== selectedBoxId))
+        setSelectedBoxId(null)
+      }
     }
-  }
+
+    const copyBoundingBoxesJSON = () => {
+      const jsonData = JSON.stringify(boundingBoxes, null, 2)
+      navigator.clipboard.writeText(jsonData)
+      alert("Bounding boxes JSON copied to clipboard!")
+    }
 
   return (
     <div className="flex h-screen bg-[#0f0f1a]">
@@ -443,15 +449,25 @@ export function BoundingBoxEditor() {
           </div>
         )}
 
-        {selectedBoxId && (
-          <Button
-            onClick={deleteSelectedBox}
-            className="w-full mt-4 bg-red-500 text-white hover:bg-red-600"
-          >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Delete Selected Box
-          </Button>
-        )}
+          {boundingBoxes.length > 0 && (
+            <Button
+              onClick={copyBoundingBoxesJSON}
+              className="w-full mt-4 bg-[#00d4ff] text-black hover:bg-[#00d4ff]/80"
+            >
+              <Copy className="w-4 h-4 mr-2" />
+              Copy JSON
+            </Button>
+          )}
+
+          {selectedBoxId && (
+            <Button
+              onClick={deleteSelectedBox}
+              className="w-full mt-4 bg-red-500 text-white hover:bg-red-600"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Selected Box
+            </Button>
+          )}
       </div>
 
       <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
