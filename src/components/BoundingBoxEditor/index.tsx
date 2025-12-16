@@ -475,22 +475,22 @@ export function BoundingBoxEditor() {
           )}
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
-        {uploadedImage ? (
-          <div className="relative">
-            <canvas
-              ref={canvasRef}
-              onMouseDown={handleCanvasMouseDown}
-              onMouseMove={handleCanvasMouseMove}
-              onMouseUp={handleCanvasMouseUp}
-              onMouseLeave={handleCanvasMouseUp}
-              className="max-w-full max-h-full border border-[#3a3a5a] rounded-lg shadow-2xl"
-              style={{ cursor: "default" }}
-            />
-            <div className="absolute top-4 right-4 bg-[#16162a] px-3 py-2 rounded-lg text-white text-sm">
-              Click boxes to select • Drag to move • Drag handles to resize
-            </div>
-          </div>
+        <div className="flex-1 flex flex-col items-center justify-center p-8 overflow-auto gap-4">
+          {uploadedImage ? (
+            <>
+              <div className="bg-[#16162a] px-3 py-2 rounded-lg text-white text-sm">
+                Click boxes to select • Drag to move • Drag handles to resize
+              </div>
+              <canvas
+                ref={canvasRef}
+                onMouseDown={handleCanvasMouseDown}
+                onMouseMove={handleCanvasMouseMove}
+                onMouseUp={handleCanvasMouseUp}
+                onMouseLeave={handleCanvasMouseUp}
+                className="max-w-full max-h-full border border-[#3a3a5a] rounded-lg shadow-2xl"
+                style={{ cursor: "default" }}
+              />
+            </>
         ) : (
           <div className="text-center text-gray-400">
             <Upload className="w-16 h-16 mx-auto mb-4 opacity-50" />
