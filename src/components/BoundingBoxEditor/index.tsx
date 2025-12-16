@@ -348,16 +348,16 @@ export function BoundingBoxEditor() {
       }
     }
 
-    const copyBoundingBoxesJSON = () => {
-      const formattedData = boundingBoxes.map((box) => ({
-        object: box.object,
-        position: { x: box.x, y: box.y },
-        size: { w: box.width, h: box.height },
-      }))
-      const jsonData = JSON.stringify(formattedData)
-      navigator.clipboard.writeText(jsonData)
-      alert("Bounding boxes JSON copied to clipboard!")
-    }
+      const copyBoundingBoxesJSON = () => {
+        const formattedData = boundingBoxes.map((box) => ({
+          object: box.object,
+          position: { x: Math.round(box.x), y: Math.round(box.y) },
+          size: { w: Math.round(box.width), h: Math.round(box.height) },
+        }))
+        const jsonData = JSON.stringify(formattedData)
+        navigator.clipboard.writeText(jsonData)
+        alert("Bounding boxes JSON copied to clipboard!")
+      }
 
   return (
     <div className="flex h-screen bg-[#0f0f1a]">
