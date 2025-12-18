@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { GoogleGenAI } from "@google/genai"
+import sharp from "sharp"
 
 interface ReplaceableObject {
   title: string
@@ -11,6 +12,19 @@ interface BoundingBoxResult {
   label: string
   type: "object" | "cover"
   box_2d: [number, number, number, number]
+}
+
+interface TransformedBoundingBox {
+  title: string
+  type: string
+  size: {
+    h: number
+    w: number
+  }
+  position: {
+    x: number
+    y: number
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -39,8 +53,13 @@ export async function POST(request: NextRequest) {
     }
 
     const arrayBuffer = await imageFile.arrayBuffer()
-    const base64Image = Buffer.from(arrayBuffer).toString("base64")
+    const imageBuffer = Buffer.from(arrayBuffer)
+    const base64Image = imageBuffer.toString("base64")
     const mimeType = imageFile.type || "image/jpeg"
+
+    const metadata = await sharp(imageBuffer).metadata()
+    const imageWidth = metadata.width || 1000
+    const imageHeight = metadata.height || 1000
 
     const objectsList = objects
       .map((obj, idx) => `- ${idx + 1}: ${obj.title}. Mô tả: ${obj.description || "Không có"}. Thuộc loại ${obj.type}`)
@@ -92,17 +111,33 @@ Lưu ý:
 
     const text = response.text || ""
     
-    let boundingBoxes: BoundingBoxResult[]
+    let rawBoxes: BoundingBoxResult[]
     try {
-      boundingBoxes = JSON.parse(text)
+      rawBoxes = JSON.parse(text)
     } catch {
       const jsonMatch = text.match(/\[[\s\S]*\]/)
       if (jsonMatch) {
-        boundingBoxes = JSON.parse(jsonMatch[0])
+        rawBoxes = JSON.parse(jsonMatch[0])
       } else {
         return NextResponse.json({ error: "Failed to parse AI response", raw: text }, { status: 500 })
       }
     }
+
+    const boundingBoxes: TransformedBoundingBox[] = rawBoxes.map((box) => {
+      const [yMin, xMin, yMax, xMax] = box.box_2d
+      
+      const x = Math.round((xMin / 1000) * imageWidth)
+      const y = Math.round((yMin / 1000) * imageHeight)
+      const w = Math.round(((xMax - xMin) / 1000) * imageWidth)
+      const h = Math.round(((yMax - yMin) / 1000) * imageHeight)
+
+      return {
+        title: box.label,
+        type: box.type,
+        size: { h, w },
+        position: { x, y },
+      }
+    })
 
     return NextResponse.json({ boundingBoxes })
   } catch (error) {
