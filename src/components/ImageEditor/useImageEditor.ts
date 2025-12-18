@@ -427,7 +427,7 @@ export function useImageEditor() {
         const file = files[index]
         
         if (pageDbId) {
-          const result = await uploadPageImage(pageDbId, file)
+          const result = await uploadPageImage(pageDbId, file, currentLayout)
           if (result) {
             setCurrentPageObjects((prev) => [...prev, result.imageObject])
           }
@@ -436,7 +436,7 @@ export function useImageEditor() {
 
       e.target.value = ""
     },
-    [canvas, pages, currentPageIndex]
+    [canvas, pages, currentPageIndex, currentLayout]
   )
 
   const handleZoom = useCallback(

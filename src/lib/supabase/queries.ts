@@ -1,5 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr"
-import { DbBook, DbPage, DbImageObject } from "@/components/ImageEditor/types"
+import { DbBook, DbPage, DbImageObject, LayoutPreset } from "@/components/ImageEditor/types"
 
 function getSupabaseClient() {
   return createBrowserClient(
@@ -8,18 +8,86 @@ function getSupabaseClient() {
   )
 }
 
+async function resizeImageToFitCanvas(
+  file: File,
+  canvasWidth: number,
+  canvasHeight: number
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement("canvas")
+      canvas.width = canvasWidth
+      canvas.height = canvasHeight
+      const ctx = canvas.getContext("2d")
+      if (!ctx) {
+        reject(new Error("Failed to get canvas context"))
+        return
+      }
+
+      const imgRatio = img.width / img.height
+      const canvasRatio = canvasWidth / canvasHeight
+
+      let drawWidth: number
+      let drawHeight: number
+      let offsetX: number
+      let offsetY: number
+
+      if (imgRatio > canvasRatio) {
+        drawWidth = canvasWidth
+        drawHeight = canvasWidth / imgRatio
+        offsetX = 0
+        offsetY = (canvasHeight - drawHeight) / 2
+      } else {
+        drawHeight = canvasHeight
+        drawWidth = canvasHeight * imgRatio
+        offsetX = (canvasWidth - drawWidth) / 2
+        offsetY = 0
+      }
+
+      ctx.fillStyle = "#FFFFFF"
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+      ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight)
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve(blob)
+          } else {
+            reject(new Error("Failed to create blob"))
+          }
+        },
+        "image/png",
+        1
+      )
+    }
+    img.onerror = () => reject(new Error("Failed to load image"))
+    img.src = URL.createObjectURL(file)
+  })
+}
+
 export async function uploadPageImage(
   pageId: string,
-  file: File
+  file: File,
+  layout?: LayoutPreset | null
 ): Promise<{ imageUrl: string; imageObject: DbImageObject } | null> {
   const supabase = getSupabaseClient()
   
-  const fileExt = file.name.split(".").pop()
-  const fileName = `${pageId}/${Date.now()}.${fileExt}`
+  const canvasWidth = layout?.width || 2600
+  const canvasHeight = layout?.height || 2600
+  
+  let uploadFile: Blob | File = file
+  try {
+    uploadFile = await resizeImageToFitCanvas(file, canvasWidth, canvasHeight)
+  } catch (err) {
+    console.error("Error resizing image:", err)
+  }
+  
+  const fileName = `${pageId}/${Date.now()}.png`
   
   const { error: uploadError } = await supabase.storage
     .from("book-images")
-    .upload(fileName, file)
+    .upload(fileName, uploadFile, { contentType: "image/png" })
   
   if (uploadError) {
     console.error("Error uploading image:", uploadError)
