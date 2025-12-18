@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react"
 import * as fabric from "fabric"
-import { LayoutPreset, PageData, EditorObject, ObjectSheet, LAYOUT_PRESETS, DbBook, DbImageObject, DbReplaceableTemplate, ReplaceableObjectType } from "./types"
+import { LayoutPreset, PageData, EditorObject, ObjectSheet, LAYOUT_PRESETS, DbBook, DbImageObject, DbReplaceableTemplate, ReplaceableObjectType, DetectedBoundingBox } from "./types"
 import { getFirstBook, getBookPages, getPageImageObjects, uploadPageImage, deletePageImageObject, getReplaceableTemplates, createReplaceableTemplate, deleteReplaceableTemplate } from "@/lib/supabase/queries"
 
 export function useImageEditor() {
@@ -27,6 +27,9 @@ export function useImageEditor() {
     const [canvasObjects, setCanvasObjects] = useState<Map<string, fabric.FabricImage>>(new Map())
     const [isUploading, setIsUploading] = useState(false)
     const [replaceableTemplates, setReplaceableTemplates] = useState<DbReplaceableTemplate[]>([])
+  const [detectedBoundingBoxes, setDetectedBoundingBoxes] = useState<DetectedBoundingBox[]>([])
+  const [selectedBoundingBoxId, setSelectedBoundingBoxId] = useState<string | null>(null)
+  const boundingBoxObjectsRef = useRef<Map<string, fabric.Rect>>(new Map())
 
     useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return

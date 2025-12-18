@@ -77,6 +77,14 @@ export interface DbImageObject {
 
 export type ReplaceableObjectType = "human" | "animal" | "item"
 
+export interface DetectedBoundingBox {
+  id: string
+  title: string
+  type: string
+  position: { x: number; y: number }
+  size: { w: number; h: number }
+}
+
 export interface DbReplaceableTemplate {
   id: string
   book_id: string
