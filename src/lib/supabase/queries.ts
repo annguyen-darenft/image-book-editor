@@ -125,7 +125,21 @@ export async function uploadPageImage(
     return null
   }
   
-  return { imageUrl: publicUrl, imageObject }
+    return { imageUrl: publicUrl, imageObject }
+}
+
+export async function deletePageImageObject(objectId: string): Promise<boolean> {
+  const supabase = getSupabaseClient()
+  const { error } = await supabase
+    .from("image_objects")
+    .delete()
+    .eq("id", objectId)
+  
+  if (error) {
+    console.error("Error deleting image object:", error)
+    return false
+  }
+  return true
 }
 
 export async function getFirstBook(): Promise<DbBook | null> {

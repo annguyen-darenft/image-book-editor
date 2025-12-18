@@ -38,10 +38,11 @@ export function ImageEditor() {
     setActiveSheet,
     updateSheetImage,
     updateSheetTransform,
-    currentPageObjects,
-    selectedPageObjectId,
-    selectPageObject,
-  } = useImageEditor()
+      currentPageObjects,
+      selectedPageObjectId,
+      selectPageObject,
+      deletePageObject,
+    } = useImageEditor()
 
   const triggerUpload = () => {
     fileInputRef.current?.click()
@@ -89,13 +90,14 @@ export function ImageEditor() {
             onUpdateSheetTransform={updateSheetTransform}
           />
         </div>
-        <ObjectsSidebar
-          objects={currentPageObjects}
-          selectedObjectId={selectedPageObjectId}
-          fileInputRef={fileInputRef}
-          onUpload={handleUpload}
-          onSelectObject={selectPageObject}
-        />
+          <ObjectsSidebar
+            objects={currentPageObjects}
+            selectedObjectId={selectedPageObjectId}
+            fileInputRef={fileInputRef}
+            onUpload={handleUpload}
+            onSelectObject={selectPageObject}
+            onDeleteObject={deletePageObject}
+          />
       </div>
     </div>
   )

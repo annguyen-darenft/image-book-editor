@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import * as fabric from "fabric"
 import { LayoutPreset, PageData, EditorObject, ObjectSheet, LAYOUT_PRESETS, DbBook, DbImageObject } from "./types"
-import { getFirstBook, getBookPages, getPageImageObjects, uploadPageImage } from "@/lib/supabase/queries"
+import { getFirstBook, getBookPages, getPageImageObjects, uploadPageImage, deletePageImageObject } from "@/lib/supabase/queries"
 
 export function useImageEditor() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -615,7 +615,30 @@ export function useImageEditor() {
         canvas.renderAll()
       }
     },
-    [canvas, canvasObjects]
+      [canvas, canvasObjects]
+    )
+
+  const deletePageObject = useCallback(
+    async (objectId: string) => {
+      const success = await deletePageImageObject(objectId)
+      if (success) {
+        setCurrentPageObjects((prev) => prev.filter((obj) => obj.id !== objectId))
+        const fabricObj = canvasObjects.get(objectId)
+        if (fabricObj && canvas) {
+          canvas.remove(fabricObj)
+          canvas.renderAll()
+        }
+        setCanvasObjects((prev) => {
+          const next = new Map(prev)
+          next.delete(objectId)
+          return next
+        })
+        if (selectedPageObjectId === objectId) {
+          setSelectedPageObjectId(null)
+        }
+      }
+    },
+    [canvas, canvasObjects, selectedPageObjectId]
   )
 
   return {
@@ -654,5 +677,6 @@ export function useImageEditor() {
     isLoadingData,
     selectedPageObjectId,
     selectPageObject,
+    deletePageObject,
   }
 }
