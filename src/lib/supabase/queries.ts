@@ -8,6 +8,58 @@ function getSupabaseClient() {
   )
 }
 
+export async function uploadPageImage(
+  pageId: string,
+  file: File
+): Promise<{ imageUrl: string; imageObject: DbImageObject } | null> {
+  const supabase = getSupabaseClient()
+  
+  const fileExt = file.name.split(".").pop()
+  const fileName = `${pageId}/${Date.now()}.${fileExt}`
+  
+  const { error: uploadError } = await supabase.storage
+    .from("book-images")
+    .upload(fileName, file)
+  
+  if (uploadError) {
+    console.error("Error uploading image:", uploadError)
+    return null
+  }
+  
+  const { data: { publicUrl } } = supabase.storage
+    .from("book-images")
+    .getPublicUrl(fileName)
+  
+  const { error: updatePageError } = await supabase
+    .from("pages")
+    .update({ original_image: publicUrl })
+    .eq("id", pageId)
+  
+  if (updatePageError) {
+    console.error("Error updating page:", updatePageError)
+  }
+  
+  const { data: imageObject, error: insertError } = await supabase
+    .from("image_objects")
+    .insert({
+      page_id: pageId,
+      title: file.name.replace(/\.[^/.]+$/, ""),
+      type: "background",
+      crop_result_path: publicUrl,
+      z_index: 0,
+      status: "pending",
+    })
+    .select()
+    .single()
+  
+  if (insertError) {
+    console.error("Error creating image object:", insertError)
+    return null
+  }
+  
+  return { imageUrl: publicUrl, imageObject }
+}
+
 export async function getFirstBook(): Promise<DbBook | null> {
   const supabase = getSupabaseClient()
   const { data, error } = await supabase

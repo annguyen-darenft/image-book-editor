@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import * as fabric from "fabric"
 import { Layer, LayoutPreset, PageData, EditorObject, ObjectSheet, LAYOUT_PRESETS, DbBook, DbImageObject } from "./types"
-import { getFirstBook, getBookPages, getPageImageObjects } from "@/lib/supabase/queries"
+import { getFirstBook, getBookPages, getPageImageObjects, uploadPageImage } from "@/lib/supabase/queries"
 
 export function useImageEditor() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -359,66 +359,121 @@ export function useImageEditor() {
   }, [canvas, pages, currentPageIndex, currentLayout, saveCurrentPage])
 
   const handleUpload = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
       if (!canvas || !e.target.files) return
 
       const files = Array.from(e.target.files)
+      const currentPage = pages[currentPageIndex]
+      const pageDbId = currentPage?.dbId
 
-      files.forEach((file, index) => {
-        const reader = new FileReader()
-        reader.onload = (event) => {
-          const imgUrl = event.target?.result as string
+      for (let index = 0; index < files.length; index++) {
+        const file = files[index]
+        
+        if (pageDbId) {
+          const result = await uploadPageImage(pageDbId, file)
+          if (result) {
+            setCurrentPageObjects((prev) => [...prev, result.imageObject])
+            
+            fabric.FabricImage.fromURL(result.imageUrl).then((img) => {
+              const canvasWidth = canvas.getWidth()
+              const canvasHeight = canvas.getHeight()
+              const zoom = canvas.getZoom() || 1
+              const viewWidth = canvasWidth / zoom
+              const viewHeight = canvasHeight / zoom
 
-          fabric.FabricImage.fromURL(imgUrl).then((img) => {
-            const canvasWidth = canvas.getWidth()
-            const canvasHeight = canvas.getHeight()
-            const zoom = canvas.getZoom() || 1
-            const viewWidth = canvasWidth / zoom
-            const viewHeight = canvasHeight / zoom
+              const scale = Math.min(
+                (viewWidth * 0.8) / (img.width || 1),
+                (viewHeight * 0.8) / (img.height || 1)
+              )
 
-            const scale = Math.min(
-              (viewWidth * 0.5) / (img.width || 1),
-              (viewHeight * 0.5) / (img.height || 1)
-            )
+              img.scale(scale)
+              img.set({
+                left: viewWidth / 2 - ((img.width || 0) * scale) / 2,
+                top: viewHeight / 2 - ((img.height || 0) * scale) / 2,
+                cornerColor: "#00d4ff",
+                cornerStrokeColor: "#00d4ff",
+                cornerSize: 12,
+                cornerStyle: "circle",
+                transparentCorners: false,
+                borderColor: "#00d4ff",
+                borderScaleFactor: 2,
+              })
 
-            img.scale(scale)
-            img.set({
-              left: viewWidth / 4 - ((img.width || 0) * scale) / 2 + index * 20,
-              top: viewHeight / 2 - ((img.height || 0) * scale) / 2 + index * 20,
-              cornerColor: "#00d4ff",
-              cornerStrokeColor: "#00d4ff",
-              cornerSize: 12,
-              cornerStyle: "circle",
-              transparentCorners: false,
-              borderColor: "#00d4ff",
-              borderScaleFactor: 2,
+              canvas.add(img)
+              canvas.setActiveObject(img)
+              canvas.renderAll()
+
+              const layerId = `layer-${Date.now()}-${index}`
+              const layerName = file.name.replace(/\.[^/.]+$/, "")
+
+              setLayers((prev) => [
+                ...prev,
+                {
+                  id: layerId,
+                  name: layerName,
+                  object: img,
+                  visible: true,
+                },
+              ])
+              setSelectedLayerId(layerId)
             })
+          }
+        } else {
+          const reader = new FileReader()
+          reader.onload = (event) => {
+            const imgUrl = event.target?.result as string
 
-            canvas.add(img)
-            canvas.setActiveObject(img)
-            canvas.renderAll()
+            fabric.FabricImage.fromURL(imgUrl).then((img) => {
+              const canvasWidth = canvas.getWidth()
+              const canvasHeight = canvas.getHeight()
+              const zoom = canvas.getZoom() || 1
+              const viewWidth = canvasWidth / zoom
+              const viewHeight = canvasHeight / zoom
 
-            const layerId = `layer-${Date.now()}-${index}`
-            const layerName = file.name.replace(/\.[^/.]+$/, "")
+              const scale = Math.min(
+                (viewWidth * 0.5) / (img.width || 1),
+                (viewHeight * 0.5) / (img.height || 1)
+              )
 
-            setLayers((prev) => [
-              ...prev,
-              {
-                id: layerId,
-                name: layerName,
-                object: img,
-                visible: true,
-              },
-            ])
-            setSelectedLayerId(layerId)
-          })
+              img.scale(scale)
+              img.set({
+                left: viewWidth / 4 - ((img.width || 0) * scale) / 2 + index * 20,
+                top: viewHeight / 2 - ((img.height || 0) * scale) / 2 + index * 20,
+                cornerColor: "#00d4ff",
+                cornerStrokeColor: "#00d4ff",
+                cornerSize: 12,
+                cornerStyle: "circle",
+                transparentCorners: false,
+                borderColor: "#00d4ff",
+                borderScaleFactor: 2,
+              })
+
+              canvas.add(img)
+              canvas.setActiveObject(img)
+              canvas.renderAll()
+
+              const layerId = `layer-${Date.now()}-${index}`
+              const layerName = file.name.replace(/\.[^/.]+$/, "")
+
+              setLayers((prev) => [
+                ...prev,
+                {
+                  id: layerId,
+                  name: layerName,
+                  object: img,
+                  visible: true,
+                },
+              ])
+              setSelectedLayerId(layerId)
+            })
+          }
+          reader.readAsDataURL(file)
         }
-        reader.readAsDataURL(file)
-      })
+      }
 
       e.target.value = ""
     },
-    [canvas]
+    [canvas, pages, currentPageIndex]
   )
 
   const deleteLayer = useCallback(
