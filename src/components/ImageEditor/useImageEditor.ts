@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from "react"
 import * as fabric from "fabric"
-import { Layer, LayoutPreset, PageData, EditorObject, ObjectSheet, LAYOUT_PRESETS } from "./types"
+import { Layer, LayoutPreset, PageData, EditorObject, ObjectSheet, LAYOUT_PRESETS, DbBook, DbImageObject } from "./types"
+import { getFirstBook, getBookPages, getPageImageObjects } from "@/lib/supabase/queries"
 
 export function useImageEditor() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -20,6 +21,10 @@ export function useImageEditor() {
 
   const [objects, setObjects] = useState<EditorObject[]>([])
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null)
+  
+  const [currentBook, setCurrentBook] = useState<DbBook | null>(null)
+  const [currentPageObjects, setCurrentPageObjects] = useState<DbImageObject[]>([])
+  const [isLoadingData, setIsLoadingData] = useState(true)
 
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return
@@ -144,16 +149,57 @@ export function useImageEditor() {
   )
 
   useEffect(() => {
-    if (canvas && isInitialized && pages.length === 0) {
-      const initialPage: PageData = {
-        id: `page-${Date.now()}`,
-        name: "Page 1",
-        canvasJSON: "",
-        thumbnail: "",
-        layers: [],
+    if (!canvas || !isInitialized) return
+
+    const loadBookData = async () => {
+      setIsLoadingData(true)
+      const book = await getFirstBook()
+      
+      if (book) {
+        setCurrentBook(book)
+        const dbPages = await getBookPages(book.id)
+        
+        if (dbPages.length > 0) {
+          const loadedPages: PageData[] = dbPages.map((p) => ({
+            id: `page-${p.id}`,
+            name: `Page ${p.page_number}`,
+            canvasJSON: "",
+            thumbnail: "",
+            layers: [],
+            dbId: p.id,
+            pageNumber: p.page_number,
+          }))
+          setPages(loadedPages)
+          
+          const firstPageObjects = await getPageImageObjects(dbPages[0].id)
+          setCurrentPageObjects(firstPageObjects)
+        } else {
+          const initialPage: PageData = {
+            id: `page-${Date.now()}`,
+            name: "Page 1",
+            canvasJSON: "",
+            thumbnail: "",
+            layers: [],
+          }
+          setPages([initialPage])
+        }
+      } else {
+        const initialPage: PageData = {
+          id: `page-${Date.now()}`,
+          name: "Page 1",
+          canvasJSON: "",
+          thumbnail: "",
+          layers: [],
+        }
+        setPages([initialPage])
       }
-      setPages([initialPage])
+      
       applyLayout(LAYOUT_PRESETS[0])
+      setIsLoadingData(false)
+    }
+
+    if (pages.length === 0) {
+      loadBookData()
     }
   }, [canvas, isInitialized, pages.length, applyLayout])
 
@@ -241,13 +287,21 @@ export function useImageEditor() {
   )
 
   const switchPage = useCallback(
-    (pageIndex: number) => {
+    async (pageIndex: number) => {
       if (pageIndex === currentPageIndex || !canvas) return
 
       saveCurrentPage()
       setTimeout(() => loadPage(pageIndex), 50)
+      
+      const targetPage = pages[pageIndex]
+      if (targetPage?.dbId) {
+        const pageObjects = await getPageImageObjects(targetPage.dbId)
+        setCurrentPageObjects(pageObjects)
+      } else {
+        setCurrentPageObjects([])
+      }
     },
-    [currentPageIndex, canvas, saveCurrentPage, loadPage]
+    [currentPageIndex, canvas, saveCurrentPage, loadPage, pages]
   )
 
   const goToPreviousPage = useCallback(() => {
@@ -654,5 +708,8 @@ export function useImageEditor() {
     setActiveSheet,
     updateSheetImage,
     updateSheetTransform,
+    currentBook,
+    currentPageObjects,
+    isLoadingData,
   }
 }

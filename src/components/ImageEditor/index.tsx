@@ -44,7 +44,12 @@ export function ImageEditor() {
     setActiveSheet,
     updateSheetImage,
     updateSheetTransform,
+    currentPageObjects,
   } = useImageEditor()
+
+  const triggerUpload = () => {
+    fileInputRef.current?.click()
+  }
 
   return (
     <div className="flex flex-col h-screen bg-[#0a0a14]">
@@ -68,7 +73,12 @@ export function ImageEditor() {
           onNextPage={goToNextPage}
         />
         <div className="flex flex-col flex-1 min-w-0">
-          <CanvasArea containerRef={containerRef} canvasRef={canvasRef} />
+          <CanvasArea 
+            containerRef={containerRef} 
+            canvasRef={canvasRef}
+            currentPageObjects={currentPageObjects}
+            onUploadClick={triggerUpload}
+          />
           <ObjectsPanel
             objects={objects}
             selectedObjectId={selectedObjectId}

@@ -19,6 +19,8 @@ export interface PageData {
   canvasJSON: string
   thumbnail: string
   layers: Layer[]
+  dbId?: string
+  pageNumber?: number
 }
 
 export interface ObjectSheet {
@@ -36,6 +38,39 @@ export interface EditorObject {
   name: string
   sheets: ObjectSheet[]
   activeSheetIndex: number
+}
+
+export interface DbBook {
+  id: string
+  title: string
+  description: string | null
+  created_at: string
+  updated_at: string
+  created_by: string
+}
+
+export interface DbPage {
+  id: string
+  book_id: string
+  page_number: number
+  created_at: string
+}
+
+export interface DbImageObject {
+  id: string
+  page_id: string
+  title: string | null
+  description: string | null
+  type: string
+  status: string
+  z_index: number
+  crop_bounding_info: Record<string, unknown> | null
+  real_bounding_info: Record<string, unknown> | null
+  crop_result_path: string | null
+  generate_result_path: string | null
+  replaceable_object_id: string | null
+  created_at: string
+  updated_at: string
 }
 
 export const LAYOUT_PRESETS: LayoutPreset[] = [
