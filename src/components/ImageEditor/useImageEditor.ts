@@ -218,17 +218,18 @@ if (book) {
           
           const dbPages = await getBookPages(book.id)
           
-          if (dbPages.length > 0) {
-          const loadedPages: PageData[] = dbPages.map((p) => ({
-            id: `page-${p.id}`,
-            name: `Page ${p.page_number}`,
-            canvasJSON: "",
-            thumbnail: "",
-            layers: [],
-            dbId: p.id,
-            pageNumber: p.page_number,
-          }))
-          setPages(loadedPages)
+if (dbPages.length > 0) {
+            const loadedPages: PageData[] = dbPages.map((p) => ({
+              id: `page-${p.id}`,
+              name: `Page ${p.page_number}`,
+              canvasJSON: "",
+              thumbnail: "",
+              layers: [],
+              dbId: p.id,
+              pageNumber: p.page_number,
+              originalImage: p.original_image,
+            }))
+            setPages(loadedPages)
           
           const firstPageObjects = await getPageImageObjects(dbPages[0].id)
           setCurrentPageObjects(firstPageObjects)
@@ -672,6 +673,16 @@ if (book) {
     []
   )
 
+  const handleDetectBoundingBoxes = useCallback(
+    (boundingBoxes: { label: string; type: string; box_2d: number[] }[]) => {
+      console.log("Detected bounding boxes:", boundingBoxes)
+    },
+    []
+  )
+
+  const currentPage = pages[currentPageIndex]
+  const currentPageOriginalImage = currentPage?.originalImage || null
+
   return {
     canvasRef,
     containerRef,
@@ -713,5 +724,7 @@ if (book) {
     replaceableTemplates,
     addReplaceableTemplate,
     removeReplaceableTemplate,
+    currentPageOriginalImage,
+    handleDetectBoundingBoxes,
   }
 }

@@ -69,7 +69,7 @@ Lưu ý:
     const ai = new GoogleGenAI({ apiKey })
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro-preview-06-05",
+      model: "gemini-3-pro-preview",
       contents: [
         {
           role: "user",
@@ -85,7 +85,7 @@ Lưu ý:
         },
       ],
       config: {
-        temperature: 0.5,
+        temperature: 0.1,
         responseMimeType: "application/json",
       },
     })

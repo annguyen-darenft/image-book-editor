@@ -21,6 +21,7 @@ export interface PageData {
   layers: Layer[]
   dbId?: string
   pageNumber?: number
+  originalImage?: string | null
 }
 
 export interface ObjectSheet {
@@ -54,6 +55,7 @@ export interface DbPage {
   book_id: string
   page_number: number
   created_at: string
+  original_image: string | null
 }
 
 export interface DbImageObject {

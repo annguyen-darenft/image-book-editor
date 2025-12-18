@@ -1,8 +1,8 @@
 "use client"
 
 import { useRef, useEffect, useState, useCallback } from "react"
-import { Plus, Trash2, X } from "lucide-react"
-import { EditorObject, ObjectSheet, DbReplaceableTemplate, ReplaceableObjectType } from "./types"
+import { Plus, Trash2, X, Scan, Loader2 } from "lucide-react"
+import { EditorObject, ObjectSheet, DbReplaceableTemplate, ReplaceableObjectType, DbImageObject } from "./types"
 
 interface ObjectsPanelProps {
   objects: EditorObject[]
@@ -19,6 +19,9 @@ interface ObjectsPanelProps {
   replaceableTemplates: DbReplaceableTemplate[]
   onAddReplaceableTemplate: (title: string, description: string, type: ReplaceableObjectType) => void
   onDeleteReplaceableTemplate: (templateId: string) => void
+  currentPageObjects: DbImageObject[]
+  currentPageOriginalImage: string | null
+  onDetectBoundingBoxes: (boundingBoxes: { label: string; type: string; box_2d: number[] }[]) => void
 }
 
 function SheetCanvasEditor({
@@ -203,6 +206,9 @@ export function ObjectsPanel({
   replaceableTemplates,
   onAddReplaceableTemplate,
   onDeleteReplaceableTemplate,
+  currentPageObjects,
+  currentPageOriginalImage,
+  onDetectBoundingBoxes,
 }: ObjectsPanelProps) {
   const [newTitle, setNewTitle] = useState("")
   const [newDescription, setNewDescription] = useState("")
@@ -210,9 +216,53 @@ export function ObjectsPanel({
   const [editingObjectId, setEditingObjectId] = useState<string | null>(null)
   const [editName, setEditName] = useState("")
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
+  const [isDetecting, setIsDetecting] = useState(false)
 
   const selectedObject = objects.find((o) => o.id === selectedObjectId)
   const selectedTemplate = replaceableTemplates.find((t) => t.id === selectedTemplateId)
+
+  const matchingPageObjects = (currentPageObjects || []).filter((pageObj) =>
+    replaceableTemplates.some(
+      (template) => template.title.toLowerCase() === pageObj.title?.toLowerCase()
+    )
+  )
+
+  const handleDetectBoundingBoxes = async () => {
+    if (!currentPageOriginalImage || replaceableTemplates.length === 0) return
+
+    setIsDetecting(true)
+    try {
+      const response = await fetch(currentPageOriginalImage)
+      const blob = await response.blob()
+      const file = new File([blob], "image.png", { type: blob.type })
+
+      const formData = new FormData()
+      formData.append("image", file)
+      formData.append("objects", JSON.stringify(
+        replaceableTemplates.map((t) => ({
+          title: t.title,
+          description: t.description || "",
+          type: t.type,
+        }))
+      ))
+
+      const detectResponse = await fetch("/api/detect-bounding-boxes", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!detectResponse.ok) {
+        throw new Error("Failed to detect bounding boxes")
+      }
+
+      const data = await detectResponse.json()
+      onDetectBoundingBoxes(data.boundingBoxes)
+    } catch (error) {
+      console.error("Error detecting bounding boxes:", error)
+    } finally {
+      setIsDetecting(false)
+    }
+  }
 
   const handleAddTemplate = () => {
     if (newTitle.trim()) {
@@ -376,8 +426,60 @@ export function ObjectsPanel({
       )}
 
       {!selectedObject && (
-        <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
-          Select an object to edit sheets
+        <div className="flex-1 flex flex-col border-r border-[#2a2a4a]">
+          <div className="p-2 border-b border-[#2a2a4a]">
+            <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Page Objects</span>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2">
+            {matchingPageObjects.length > 0 ? (
+              <div className="space-y-1">
+                {matchingPageObjects.map((obj) => (
+                  <div
+                    key={obj.id}
+                    className="px-2 py-1.5 rounded text-sm text-gray-300 hover:bg-[#2a2a4a] cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="truncate font-medium">{obj.title}</span>
+                      <span className="text-[10px] px-1 bg-[#2a2a4a] text-gray-400 rounded uppercase">
+                        {obj.type}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full gap-3">
+                <span className="text-xs text-gray-500 text-center">
+                  No matching objects found
+                </span>
+                {currentPageOriginalImage && replaceableTemplates.length > 0 && (
+                  <button
+                    onClick={handleDetectBoundingBoxes}
+                    disabled={isDetecting}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-[#00d4ff] text-black rounded text-xs font-medium hover:bg-[#00b8e0] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isDetecting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Detecting...
+                      </>
+                    ) : (
+                      <>
+                        <Scan className="w-4 h-4" />
+                        Detect Replaceable
+                      </>
+                    )}
+                  </button>
+                )}
+                {!currentPageOriginalImage && (
+                  <span className="text-[10px] text-gray-600">Upload an image first</span>
+                )}
+                {replaceableTemplates.length === 0 && (
+                  <span className="text-[10px] text-gray-600">Add replaceable templates first</span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

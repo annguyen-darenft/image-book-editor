@@ -47,6 +47,8 @@ export function ImageEditor() {
     replaceableTemplates,
     addReplaceableTemplate,
     removeReplaceableTemplate,
+    currentPageOriginalImage,
+    handleDetectBoundingBoxes,
   } = useImageEditor()
 
   const triggerUpload = () => {
@@ -97,6 +99,9 @@ export function ImageEditor() {
               replaceableTemplates={replaceableTemplates}
               onAddReplaceableTemplate={addReplaceableTemplate}
               onDeleteReplaceableTemplate={removeReplaceableTemplate}
+              currentPageObjects={currentPageObjects}
+              currentPageOriginalImage={currentPageOriginalImage}
+              onDetectBoundingBoxes={handleDetectBoundingBoxes}
             />
           </div>
             <ObjectsSidebar
