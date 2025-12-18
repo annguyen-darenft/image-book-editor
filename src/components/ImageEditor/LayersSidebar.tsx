@@ -2,7 +2,7 @@
 
 import { RefObject } from "react"
 import { Button } from "@/components/ui/button"
-import { Upload, Image, Layers, Trash2 } from "lucide-react"
+import { Upload, Image, Layers, Trash2, Loader2 } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { DbImageObject } from "./types"
 
@@ -13,16 +13,18 @@ interface ObjectsSidebarProps {
   onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
   onSelectObject: (objectId: string) => void
   onDeleteObject: (objectId: string) => void
+  isUploading?: boolean
 }
 
 export function ObjectsSidebar({
   objects,
   selectedObjectId,
   fileInputRef,
-    onUpload,
-    onSelectObject,
-    onDeleteObject,
-  }: ObjectsSidebarProps) {
+  onUpload,
+  onSelectObject,
+  onDeleteObject,
+  isUploading = false,
+}: ObjectsSidebarProps) {
     const sortedObjects = [...objects].sort((a, b) => b.z_index - a.z_index)
 
     return (
@@ -40,10 +42,15 @@ export function ObjectsSidebar({
           <Button
             onClick={() => fileInputRef.current?.click()}
             size="sm"
+            disabled={isUploading}
             className="h-8 bg-gradient-to-r from-[#00d4ff] to-[#00ff88] text-black font-semibold hover:opacity-90 text-xs px-3"
           >
-            <Upload className="w-3 h-3 mr-1" />
-            Upload
+            {isUploading ? (
+              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+            ) : (
+              <Upload className="w-3 h-3 mr-1" />
+            )}
+            {isUploading ? "Uploading..." : "Upload"}
           </Button>
         </div>
 

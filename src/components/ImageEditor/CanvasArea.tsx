@@ -1,7 +1,7 @@
 "use client"
 
 import { RefObject } from "react"
-import { Upload } from "lucide-react"
+import { Upload, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DbImageObject } from "./types"
 
@@ -10,9 +10,16 @@ interface CanvasAreaProps {
   canvasRef: RefObject<HTMLCanvasElement | null>
   currentPageObjects: DbImageObject[]
   onUploadClick?: () => void
+  isUploading?: boolean
 }
 
-export function CanvasArea({ containerRef, canvasRef, currentPageObjects, onUploadClick }: CanvasAreaProps) {
+export function CanvasArea({ 
+  containerRef, 
+  canvasRef, 
+  currentPageObjects, 
+  onUploadClick,
+  isUploading = false,
+}: CanvasAreaProps) {
   const hasObjects = currentPageObjects.length > 0
 
   return (
@@ -31,7 +38,23 @@ export function CanvasArea({ containerRef, canvasRef, currentPageObjects, onUplo
       }}
     >
       <canvas ref={canvasRef} />
-      {!hasObjects && (
+      
+      {isUploading && (
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex flex-col items-center justify-center z-50 transition-all">
+          <div className="bg-[#16162a] border border-[#00d4ff]/30 p-6 rounded-xl shadow-2xl flex flex-col items-center gap-4">
+            <div className="relative">
+              <div className="w-12 h-12 rounded-full border-2 border-[#00d4ff]/20 animate-pulse" />
+              <Loader2 className="w-12 h-12 text-[#00d4ff] animate-spin absolute inset-0" />
+            </div>
+            <div className="text-center">
+              <p className="text-white font-medium">Processing Image...</p>
+              <p className="text-xs text-[#6b6b8d] mt-1">Fitting to canvas size</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!hasObjects && !isUploading && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="pointer-events-auto">
             <Button

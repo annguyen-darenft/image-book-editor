@@ -38,11 +38,13 @@ export function ImageEditor() {
     setActiveSheet,
     updateSheetImage,
     updateSheetTransform,
-      currentPageObjects,
-      selectedPageObjectId,
-      selectPageObject,
-      deletePageObject,
-    } = useImageEditor()
+    currentPageObjects,
+    isLoadingData,
+    isUploading,
+    selectedPageObjectId,
+    selectPageObject,
+    deletePageObject,
+  } = useImageEditor()
 
   const triggerUpload = () => {
     fileInputRef.current?.click()
@@ -69,35 +71,37 @@ export function ImageEditor() {
           onPreviousPage={goToPreviousPage}
           onNextPage={goToNextPage}
         />
-        <div className="flex flex-col flex-1 min-w-0">
-          <CanvasArea 
-            containerRef={containerRef} 
-            canvasRef={canvasRef}
-            currentPageObjects={currentPageObjects}
-            onUploadClick={triggerUpload}
-          />
-          <ObjectsPanel
-            objects={objects}
-            selectedObjectId={selectedObjectId}
-            onAddObject={addObject}
-            onDeleteObject={deleteObject}
-            onSelectObject={selectObject}
-            onRenameObject={renameObject}
-            onAddSheet={addSheetToObject}
-            onDeleteSheet={deleteSheet}
-            onSetActiveSheet={setActiveSheet}
-            onUpdateSheetImage={updateSheetImage}
-            onUpdateSheetTransform={updateSheetTransform}
-          />
-        </div>
-          <ObjectsSidebar
-            objects={currentPageObjects}
-            selectedObjectId={selectedPageObjectId}
-            fileInputRef={fileInputRef}
-            onUpload={handleUpload}
-            onSelectObject={selectPageObject}
-            onDeleteObject={deletePageObject}
-          />
+          <div className="flex flex-col flex-1 min-w-0">
+            <CanvasArea 
+              containerRef={containerRef} 
+              canvasRef={canvasRef}
+              currentPageObjects={currentPageObjects}
+              onUploadClick={triggerUpload}
+              isUploading={isUploading}
+            />
+            <ObjectsPanel
+              objects={objects}
+              selectedObjectId={selectedObjectId}
+              onAddObject={addObject}
+              onDeleteObject={deleteObject}
+              onSelectObject={selectObject}
+              onRenameObject={renameObject}
+              onAddSheet={addSheetToObject}
+              onDeleteSheet={deleteSheet}
+              onSetActiveSheet={setActiveSheet}
+              onUpdateSheetImage={updateSheetImage}
+              onUpdateSheetTransform={updateSheetTransform}
+            />
+          </div>
+            <ObjectsSidebar
+              objects={currentPageObjects}
+              selectedObjectId={selectedPageObjectId}
+              fileInputRef={fileInputRef}
+              onUpload={handleUpload}
+              onSelectObject={selectPageObject}
+              onDeleteObject={deletePageObject}
+              isUploading={isUploading}
+            />
       </div>
     </div>
   )

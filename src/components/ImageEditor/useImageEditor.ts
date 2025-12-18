@@ -23,10 +23,11 @@ export function useImageEditor() {
   const [currentBook, setCurrentBook] = useState<DbBook | null>(null)
   const [currentPageObjects, setCurrentPageObjects] = useState<DbImageObject[]>([])
   const [isLoadingData, setIsLoadingData] = useState(true)
-  const [selectedPageObjectId, setSelectedPageObjectId] = useState<string | null>(null)
-  const [canvasObjects, setCanvasObjects] = useState<Map<string, fabric.FabricImage>>(new Map())
+    const [selectedPageObjectId, setSelectedPageObjectId] = useState<string | null>(null)
+    const [canvasObjects, setCanvasObjects] = useState<Map<string, fabric.FabricImage>>(new Map())
+    const [isUploading, setIsUploading] = useState(false)
 
-  useEffect(() => {
+    useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return
 
     const container = containerRef.current
@@ -423,18 +424,22 @@ export function useImageEditor() {
       const currentPage = pages[currentPageIndex]
       const pageDbId = currentPage?.dbId
 
-      for (let index = 0; index < files.length; index++) {
-        const file = files[index]
-        
-        if (pageDbId) {
-          const result = await uploadPageImage(pageDbId, file, currentLayout)
-          if (result) {
-            setCurrentPageObjects((prev) => [...prev, result.imageObject])
+      setIsUploading(true)
+      try {
+        for (let index = 0; index < files.length; index++) {
+          const file = files[index]
+          
+          if (pageDbId) {
+            const result = await uploadPageImage(pageDbId, file, currentLayout)
+            if (result) {
+              setCurrentPageObjects((prev) => [...prev, result.imageObject])
+            }
           }
         }
+      } finally {
+        setIsUploading(false)
+        e.target.value = ""
       }
-
-      e.target.value = ""
     },
     [canvas, pages, currentPageIndex, currentLayout]
   )
@@ -675,6 +680,7 @@ export function useImageEditor() {
     currentBook,
     currentPageObjects,
     isLoadingData,
+    isUploading,
     selectedPageObjectId,
     selectPageObject,
     deletePageObject,
