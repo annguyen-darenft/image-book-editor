@@ -2,15 +2,13 @@
 
 import { useEffect, useRef, useState, useCallback } from "react"
 import * as fabric from "fabric"
-import { Layer, LayoutPreset, PageData, EditorObject, ObjectSheet, LAYOUT_PRESETS, DbBook, DbImageObject } from "./types"
+import { LayoutPreset, PageData, EditorObject, ObjectSheet, LAYOUT_PRESETS, DbBook, DbImageObject } from "./types"
 import { getFirstBook, getBookPages, getPageImageObjects, uploadPageImage } from "@/lib/supabase/queries"
 
 export function useImageEditor() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null)
-  const [layers, setLayers] = useState<Layer[]>([])
-  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
   const [currentLayout, setCurrentLayout] = useState<LayoutPreset | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -25,6 +23,8 @@ export function useImageEditor() {
   const [currentBook, setCurrentBook] = useState<DbBook | null>(null)
   const [currentPageObjects, setCurrentPageObjects] = useState<DbImageObject[]>([])
   const [isLoadingData, setIsLoadingData] = useState(true)
+  const [selectedPageObjectId, setSelectedPageObjectId] = useState<string | null>(null)
+  const [canvasObjects, setCanvasObjects] = useState<Map<string, fabric.FabricImage>>(new Map())
 
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return
@@ -36,26 +36,6 @@ export function useImageEditor() {
       backgroundColor: "#FFF",
       selection: true,
       preserveObjectStacking: true,
-    })
-
-    c.on("selection:created", (e) => {
-      const obj = e.selected?.[0]
-      if (obj) {
-        const layer = layers.find((l) => l.object === obj)
-        if (layer) setSelectedLayerId(layer.id)
-      }
-    })
-
-    c.on("selection:updated", (e) => {
-      const obj = e.selected?.[0]
-      if (obj) {
-        const layer = layers.find((l) => l.object === obj)
-        if (layer) setSelectedLayerId(layer.id)
-      }
-    })
-
-    c.on("selection:cleared", () => {
-      setSelectedLayerId(null)
     })
 
     setCanvas(c)
@@ -87,23 +67,31 @@ export function useImageEditor() {
     canvas.on("selection:created", (e) => {
       const obj = e.selected?.[0]
       if (obj) {
-        const layer = layers.find((l) => l.object === obj)
-        if (layer) setSelectedLayerId(layer.id)
+        for (const [id, fabricObj] of canvasObjects.entries()) {
+          if (fabricObj === obj) {
+            setSelectedPageObjectId(id)
+            break
+          }
+        }
       }
     })
 
     canvas.on("selection:updated", (e) => {
       const obj = e.selected?.[0]
       if (obj) {
-        const layer = layers.find((l) => l.object === obj)
-        if (layer) setSelectedLayerId(layer.id)
+        for (const [id, fabricObj] of canvasObjects.entries()) {
+          if (fabricObj === obj) {
+            setSelectedPageObjectId(id)
+            break
+          }
+        }
       }
     })
 
     canvas.on("selection:cleared", () => {
-      setSelectedLayerId(null)
+      setSelectedPageObjectId(null)
     })
-  }, [canvas, layers])
+  }, [canvas, canvasObjects])
 
   const applyLayout = useCallback(
     (preset: LayoutPreset) => {
@@ -146,6 +134,71 @@ export function useImageEditor() {
       setZoom(scale)
     },
     [canvas]
+  )
+
+  const renderPageObjects = useCallback(
+    async (pageObjects: DbImageObject[]) => {
+      if (!canvas || !currentLayout) return
+
+      canvas.getObjects().forEach((obj) => canvas.remove(obj))
+      const newCanvasObjects = new Map<string, fabric.FabricImage>()
+
+      const sortedObjects = [...pageObjects].sort((a, b) => a.z_index - b.z_index)
+
+      for (const obj of sortedObjects) {
+        const imageUrl = obj.generate_result_path || obj.crop_result_path
+        if (!imageUrl) continue
+
+        try {
+          const img = await fabric.FabricImage.fromURL(imageUrl, { crossOrigin: "anonymous" })
+
+          if (obj.type === "background") {
+            const scaleX = currentLayout.width / (img.width || 1)
+            const scaleY = currentLayout.height / (img.height || 1)
+            img.set({
+              left: 0,
+              top: 0,
+              scaleX,
+              scaleY,
+              selectable: false,
+              evented: false,
+            })
+          } else {
+            const boundingInfo = obj.generate_result_path
+              ? obj.real_bounding_info
+              : obj.crop_bounding_info
+
+            if (boundingInfo && typeof boundingInfo === "object") {
+              const { x, y, width, height } = boundingInfo as { x: number; y: number; width: number; height: number }
+              const scaleX = width / (img.width || 1)
+              const scaleY = height / (img.height || 1)
+              img.set({
+                left: x,
+                top: y,
+                scaleX,
+                scaleY,
+                cornerColor: "#00d4ff",
+                cornerStrokeColor: "#00d4ff",
+                cornerSize: 12,
+                cornerStyle: "circle",
+                transparentCorners: false,
+                borderColor: "#00d4ff",
+                borderScaleFactor: 2,
+              })
+            }
+          }
+
+          canvas.add(img)
+          newCanvasObjects.set(obj.id, img)
+        } catch (error) {
+          console.error("Failed to load image:", imageUrl, error)
+        }
+      }
+
+      canvas.renderAll()
+      setCanvasObjects(newCanvasObjects)
+    },
+    [canvas, currentLayout]
   )
 
   useEffect(() => {
@@ -203,6 +256,12 @@ export function useImageEditor() {
     }
   }, [canvas, isInitialized, pages.length, applyLayout])
 
+  useEffect(() => {
+    if (currentPageObjects.length > 0 && currentLayout) {
+      renderPageObjects(currentPageObjects)
+    }
+  }, [currentPageObjects, currentLayout, renderPageObjects])
+
   const saveCurrentPage = useCallback(() => {
     if (!canvas || pages.length === 0) return
 
@@ -216,11 +275,11 @@ export function useImageEditor() {
     setPages((prev) =>
       prev.map((page, idx) =>
         idx === currentPageIndex
-          ? { ...page, canvasJSON: json, thumbnail, layers: [...layers] }
+          ? { ...page, canvasJSON: json, thumbnail, layers: [] }
           : page
       )
     )
-  }, [canvas, currentPageIndex, layers, pages.length])
+  }, [canvas, currentPageIndex, pages.length])
 
   const loadPage = useCallback(
     async (pageIndex: number) => {
@@ -236,8 +295,7 @@ export function useImageEditor() {
       }
 
       canvas.renderAll()
-      setLayers(page.layers || [])
-      setSelectedLayerId(null)
+      setSelectedPageObjectId(null)
       setCurrentPageIndex(pageIndex)
     },
     [canvas, pages]
@@ -262,8 +320,7 @@ export function useImageEditor() {
       canvas.clear()
       canvas.backgroundColor = "#FFF"
       canvas.renderAll()
-      setLayers([])
-      setSelectedLayerId(null)
+      setSelectedPageObjectId(null)
       setCurrentPageIndex(pages.length)
     }, 50)
   }, [canvas, pages.length, saveCurrentPage])
@@ -373,190 +430,13 @@ export function useImageEditor() {
           const result = await uploadPageImage(pageDbId, file)
           if (result) {
             setCurrentPageObjects((prev) => [...prev, result.imageObject])
-            
-            fabric.FabricImage.fromURL(result.imageUrl).then((img) => {
-              const canvasWidth = canvas.getWidth()
-              const canvasHeight = canvas.getHeight()
-              const zoom = canvas.getZoom() || 1
-              const viewWidth = canvasWidth / zoom
-              const viewHeight = canvasHeight / zoom
-
-              const scale = Math.min(
-                (viewWidth * 0.8) / (img.width || 1),
-                (viewHeight * 0.8) / (img.height || 1)
-              )
-
-              img.scale(scale)
-              img.set({
-                left: viewWidth / 2 - ((img.width || 0) * scale) / 2,
-                top: viewHeight / 2 - ((img.height || 0) * scale) / 2,
-                cornerColor: "#00d4ff",
-                cornerStrokeColor: "#00d4ff",
-                cornerSize: 12,
-                cornerStyle: "circle",
-                transparentCorners: false,
-                borderColor: "#00d4ff",
-                borderScaleFactor: 2,
-              })
-
-              canvas.add(img)
-              canvas.setActiveObject(img)
-              canvas.renderAll()
-
-              const layerId = `layer-${Date.now()}-${index}`
-              const layerName = file.name.replace(/\.[^/.]+$/, "")
-
-              setLayers((prev) => [
-                ...prev,
-                {
-                  id: layerId,
-                  name: layerName,
-                  object: img,
-                  visible: true,
-                },
-              ])
-              setSelectedLayerId(layerId)
-            })
           }
-        } else {
-          const reader = new FileReader()
-          reader.onload = (event) => {
-            const imgUrl = event.target?.result as string
-
-            fabric.FabricImage.fromURL(imgUrl).then((img) => {
-              const canvasWidth = canvas.getWidth()
-              const canvasHeight = canvas.getHeight()
-              const zoom = canvas.getZoom() || 1
-              const viewWidth = canvasWidth / zoom
-              const viewHeight = canvasHeight / zoom
-
-              const scale = Math.min(
-                (viewWidth * 0.5) / (img.width || 1),
-                (viewHeight * 0.5) / (img.height || 1)
-              )
-
-              img.scale(scale)
-              img.set({
-                left: viewWidth / 4 - ((img.width || 0) * scale) / 2 + index * 20,
-                top: viewHeight / 2 - ((img.height || 0) * scale) / 2 + index * 20,
-                cornerColor: "#00d4ff",
-                cornerStrokeColor: "#00d4ff",
-                cornerSize: 12,
-                cornerStyle: "circle",
-                transparentCorners: false,
-                borderColor: "#00d4ff",
-                borderScaleFactor: 2,
-              })
-
-              canvas.add(img)
-              canvas.setActiveObject(img)
-              canvas.renderAll()
-
-              const layerId = `layer-${Date.now()}-${index}`
-              const layerName = file.name.replace(/\.[^/.]+$/, "")
-
-              setLayers((prev) => [
-                ...prev,
-                {
-                  id: layerId,
-                  name: layerName,
-                  object: img,
-                  visible: true,
-                },
-              ])
-              setSelectedLayerId(layerId)
-            })
-          }
-          reader.readAsDataURL(file)
         }
       }
 
       e.target.value = ""
     },
     [canvas, pages, currentPageIndex]
-  )
-
-  const deleteLayer = useCallback(
-    (layerId: string) => {
-      if (!canvas) return
-
-      const layer = layers.find((l) => l.id === layerId)
-      if (layer) {
-        canvas.remove(layer.object)
-        canvas.renderAll()
-        setLayers((prev) => prev.filter((l) => l.id !== layerId))
-        if (selectedLayerId === layerId) {
-          setSelectedLayerId(null)
-        }
-      }
-    },
-    [canvas, layers, selectedLayerId]
-  )
-
-  const selectLayer = useCallback(
-    (layerId: string) => {
-      if (!canvas) return
-
-      const layer = layers.find((l) => l.id === layerId)
-      if (layer) {
-        canvas.setActiveObject(layer.object)
-        canvas.renderAll()
-        setSelectedLayerId(layerId)
-      }
-    },
-    [canvas, layers]
-  )
-
-  const moveLayer = useCallback(
-    (layerId: string, direction: "up" | "down") => {
-      if (!canvas) return
-
-      const layerIndex = layers.findIndex((l) => l.id === layerId)
-      if (layerIndex === -1) return
-
-      const layer = layers[layerIndex]
-
-      if (direction === "up" && layerIndex < layers.length - 1) {
-        canvas.bringObjectForward(layer.object)
-        canvas.renderAll()
-        setLayers((prev) => {
-          const newLayers = [...prev]
-          const temp = newLayers[layerIndex]
-          newLayers[layerIndex] = newLayers[layerIndex + 1]
-          newLayers[layerIndex + 1] = temp
-          return newLayers
-        })
-      } else if (direction === "down" && layerIndex > 0) {
-        canvas.sendObjectBackwards(layer.object)
-        canvas.renderAll()
-        setLayers((prev) => {
-          const newLayers = [...prev]
-          const temp = newLayers[layerIndex]
-          newLayers[layerIndex] = newLayers[layerIndex - 1]
-          newLayers[layerIndex - 1] = temp
-          return newLayers
-        })
-      }
-    },
-    [canvas, layers]
-  )
-
-  const toggleVisibility = useCallback(
-    (layerId: string) => {
-      if (!canvas) return
-
-      const layer = layers.find((l) => l.id === layerId)
-      if (layer) {
-        layer.object.set("visible", !layer.object.visible)
-        canvas.renderAll()
-        setLayers((prev) =>
-          prev.map((l) =>
-            l.id === layerId ? { ...l, visible: !l.visible } : l
-          )
-        )
-      }
-    },
-    [canvas, layers]
   )
 
   const handleZoom = useCallback(
@@ -726,23 +606,29 @@ export function useImageEditor() {
     []
   )
 
+  const selectPageObject = useCallback(
+    (objectId: string) => {
+      setSelectedPageObjectId(objectId)
+      const fabricObj = canvasObjects.get(objectId)
+      if (fabricObj && canvas) {
+        canvas.setActiveObject(fabricObj)
+        canvas.renderAll()
+      }
+    },
+    [canvas, canvasObjects]
+  )
+
   return {
     canvasRef,
     containerRef,
     fileInputRef,
     canvas,
-    layers,
-    selectedLayerId,
     zoom,
     currentLayout,
     pages,
     currentPageIndex,
     applyLayout,
     handleUpload,
-    deleteLayer,
-    selectLayer,
-    moveLayer,
-    toggleVisibility,
     handleZoom,
     resetView,
     exportCanvas,
@@ -766,5 +652,7 @@ export function useImageEditor() {
     currentBook,
     currentPageObjects,
     isLoadingData,
+    selectedPageObjectId,
+    selectPageObject,
   }
 }

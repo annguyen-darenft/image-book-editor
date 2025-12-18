@@ -43,7 +43,7 @@ export async function uploadPageImage(
     .from("image_objects")
     .insert({
       page_id: pageId,
-      title: file.name.replace(/\.[^/.]+$/, ""),
+      title: "background",
       type: "background",
       crop_result_path: publicUrl,
       z_index: 0,

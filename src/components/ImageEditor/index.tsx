@@ -2,7 +2,7 @@
 
 import { Header } from "./Header"
 import { PagesSidebar } from "./PagesSidebar"
-import { LayersSidebar } from "./LayersSidebar"
+import { ObjectsSidebar } from "./LayersSidebar"
 import { ObjectsPanel } from "./ObjectsPanel"
 import { CanvasArea } from "./CanvasArea"
 import { useImageEditor } from "./useImageEditor"
@@ -12,18 +12,12 @@ export function ImageEditor() {
     canvasRef,
     containerRef,
     fileInputRef,
-    layers,
-    selectedLayerId,
     zoom,
     currentLayout,
     pages,
     currentPageIndex,
     applyLayout,
     handleUpload,
-    deleteLayer,
-    selectLayer,
-    moveLayer,
-    toggleVisibility,
     handleZoom,
     resetView,
     exportCanvas,
@@ -45,6 +39,8 @@ export function ImageEditor() {
     updateSheetImage,
     updateSheetTransform,
     currentPageObjects,
+    selectedPageObjectId,
+    selectPageObject,
   } = useImageEditor()
 
   const triggerUpload = () => {
@@ -93,15 +89,12 @@ export function ImageEditor() {
             onUpdateSheetTransform={updateSheetTransform}
           />
         </div>
-        <LayersSidebar
-          layers={layers}
-          selectedLayerId={selectedLayerId}
+        <ObjectsSidebar
+          objects={currentPageObjects}
+          selectedObjectId={selectedPageObjectId}
           fileInputRef={fileInputRef}
           onUpload={handleUpload}
-          onSelectLayer={selectLayer}
-          onDeleteLayer={deleteLayer}
-          onMoveLayer={moveLayer}
-          onToggleVisibility={toggleVisibility}
+          onSelectObject={selectPageObject}
         />
       </div>
     </div>
