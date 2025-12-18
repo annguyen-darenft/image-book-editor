@@ -44,6 +44,9 @@ export function ImageEditor() {
     selectedPageObjectId,
     selectPageObject,
     deletePageObject,
+    replaceableTemplates,
+    addReplaceableTemplate,
+    removeReplaceableTemplate,
   } = useImageEditor()
 
   const triggerUpload = () => {
@@ -91,6 +94,9 @@ export function ImageEditor() {
               onSetActiveSheet={setActiveSheet}
               onUpdateSheetImage={updateSheetImage}
               onUpdateSheetTransform={updateSheetTransform}
+              replaceableTemplates={replaceableTemplates}
+              onAddReplaceableTemplate={addReplaceableTemplate}
+              onDeleteReplaceableTemplate={removeReplaceableTemplate}
             />
           </div>
             <ObjectsSidebar

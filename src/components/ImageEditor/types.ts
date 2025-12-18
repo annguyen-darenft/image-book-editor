@@ -73,6 +73,15 @@ export interface DbImageObject {
   updated_at: string
 }
 
+export interface DbReplaceableTemplate {
+  id: string
+  book_id: string
+  title: string
+  description: string | null
+  type: string
+  created_at: string
+}
+
 export const LAYOUT_PRESETS: LayoutPreset[] = [
   { name: "Square", width: 2600, height: 2600 },
   { name: "Landscape", width: 5200, height: 2600 },

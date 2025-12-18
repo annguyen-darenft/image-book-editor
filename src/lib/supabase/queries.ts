@@ -1,5 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr"
-import { DbBook, DbPage, DbImageObject, LayoutPreset } from "@/components/ImageEditor/types"
+import { DbBook, DbPage, DbImageObject, DbReplaceableTemplate, LayoutPreset } from "@/components/ImageEditor/types"
 
 function getSupabaseClient() {
   return createBrowserClient(
@@ -186,4 +186,57 @@ export async function getPageImageObjects(pageId: string): Promise<DbImageObject
     return []
   }
   return data || []
+}
+
+export async function getReplaceableTemplates(bookId: string): Promise<DbReplaceableTemplate[]> {
+  const supabase = getSupabaseClient()
+  const { data, error } = await supabase
+    .from("replaceable_object_templates")
+    .select("*")
+    .eq("book_id", bookId)
+    .order("created_at", { ascending: true })
+  
+  if (error) {
+    console.error("Error fetching replaceable templates:", error)
+    return []
+  }
+  return data || []
+}
+
+export async function createReplaceableTemplate(
+  bookId: string,
+  title: string,
+  description: string
+): Promise<DbReplaceableTemplate | null> {
+  const supabase = getSupabaseClient()
+  const { data, error } = await supabase
+    .from("replaceable_object_templates")
+    .insert({
+      book_id: bookId,
+      title,
+      description: description || null,
+      type: "custom",
+    })
+    .select()
+    .single()
+  
+  if (error) {
+    console.error("Error creating replaceable template:", error)
+    return null
+  }
+  return data
+}
+
+export async function deleteReplaceableTemplate(templateId: string): Promise<boolean> {
+  const supabase = getSupabaseClient()
+  const { error } = await supabase
+    .from("replaceable_object_templates")
+    .delete()
+    .eq("id", templateId)
+  
+  if (error) {
+    console.error("Error deleting replaceable template:", error)
+    return false
+  }
+  return true
 }

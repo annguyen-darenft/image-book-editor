@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from "react"
 import * as fabric from "fabric"
-import { LayoutPreset, PageData, EditorObject, ObjectSheet, LAYOUT_PRESETS, DbBook, DbImageObject } from "./types"
-import { getFirstBook, getBookPages, getPageImageObjects, uploadPageImage, deletePageImageObject } from "@/lib/supabase/queries"
+import { LayoutPreset, PageData, EditorObject, ObjectSheet, LAYOUT_PRESETS, DbBook, DbImageObject, DbReplaceableTemplate } from "./types"
+import { getFirstBook, getBookPages, getPageImageObjects, uploadPageImage, deletePageImageObject, getReplaceableTemplates, createReplaceableTemplate, deleteReplaceableTemplate } from "@/lib/supabase/queries"
 
 export function useImageEditor() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -26,6 +26,7 @@ export function useImageEditor() {
     const [selectedPageObjectId, setSelectedPageObjectId] = useState<string | null>(null)
     const [canvasObjects, setCanvasObjects] = useState<Map<string, fabric.FabricImage>>(new Map())
     const [isUploading, setIsUploading] = useState(false)
+    const [replaceableTemplates, setReplaceableTemplates] = useState<DbReplaceableTemplate[]>([])
 
     useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return
@@ -209,11 +210,15 @@ export function useImageEditor() {
       setIsLoadingData(true)
       const book = await getFirstBook()
       
-      if (book) {
-        setCurrentBook(book)
-        const dbPages = await getBookPages(book.id)
-        
-        if (dbPages.length > 0) {
+if (book) {
+          setCurrentBook(book)
+          
+          const templates = await getReplaceableTemplates(book.id)
+          setReplaceableTemplates(templates)
+          
+          const dbPages = await getBookPages(book.id)
+          
+          if (dbPages.length > 0) {
           const loadedPages: PageData[] = dbPages.map((p) => ({
             id: `page-${p.id}`,
             name: `Page ${p.page_number}`,
@@ -646,6 +651,27 @@ export function useImageEditor() {
     [canvas, canvasObjects, selectedPageObjectId]
   )
 
+  const addReplaceableTemplate = useCallback(
+    async (title: string, description: string) => {
+      if (!currentBook) return
+      const template = await createReplaceableTemplate(currentBook.id, title, description)
+      if (template) {
+        setReplaceableTemplates((prev) => [...prev, template])
+      }
+    },
+    [currentBook]
+  )
+
+  const removeReplaceableTemplate = useCallback(
+    async (templateId: string) => {
+      const success = await deleteReplaceableTemplate(templateId)
+      if (success) {
+        setReplaceableTemplates((prev) => prev.filter((t) => t.id !== templateId))
+      }
+    },
+    []
+  )
+
   return {
     canvasRef,
     containerRef,
@@ -684,5 +710,8 @@ export function useImageEditor() {
     selectedPageObjectId,
     selectPageObject,
     deletePageObject,
+    replaceableTemplates,
+    addReplaceableTemplate,
+    removeReplaceableTemplate,
   }
 }

@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from "react"
 import { Plus, Trash2, X } from "lucide-react"
-import { EditorObject, ObjectSheet } from "./types"
+import { EditorObject, ObjectSheet, DbReplaceableTemplate } from "./types"
 
 interface ObjectsPanelProps {
   objects: EditorObject[]
@@ -16,6 +16,9 @@ interface ObjectsPanelProps {
   onSetActiveSheet: (objectId: string, sheetIndex: number) => void
   onUpdateSheetImage: (objectId: string, sheetId: string, imageUrl: string) => void
   onUpdateSheetTransform: (objectId: string, sheetId: string, transform: { x?: number; y?: number; width?: number; height?: number }) => void
+  replaceableTemplates: DbReplaceableTemplate[]
+  onAddReplaceableTemplate: (title: string, description: string) => void
+  onDeleteReplaceableTemplate: (templateId: string) => void
 }
 
 function SheetCanvasEditor({
@@ -197,17 +200,24 @@ export function ObjectsPanel({
   onSetActiveSheet,
   onUpdateSheetImage,
   onUpdateSheetTransform,
+  replaceableTemplates,
+  onAddReplaceableTemplate,
+  onDeleteReplaceableTemplate,
 }: ObjectsPanelProps) {
-  const [newObjectName, setNewObjectName] = useState("")
+  const [newTitle, setNewTitle] = useState("")
+  const [newDescription, setNewDescription] = useState("")
   const [editingObjectId, setEditingObjectId] = useState<string | null>(null)
   const [editName, setEditName] = useState("")
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
 
   const selectedObject = objects.find((o) => o.id === selectedObjectId)
+  const selectedTemplate = replaceableTemplates.find((t) => t.id === selectedTemplateId)
 
-  const handleAddObject = () => {
-    if (newObjectName.trim()) {
-      onAddObject(newObjectName.trim())
-      setNewObjectName("")
+  const handleAddTemplate = () => {
+    if (newTitle.trim()) {
+      onAddReplaceableTemplate(newTitle.trim(), newDescription.trim())
+      setNewTitle("")
+      setNewDescription("")
     }
   }
 
@@ -226,60 +236,64 @@ export function ObjectsPanel({
 
   return (
     <div className="h-64 bg-[#1a1a2e] border-t border-[#2a2a4a] flex">
-      <div className="w-48 border-r border-[#2a2a4a] flex flex-col">
+      <div className="w-56 border-r border-[#2a2a4a] flex flex-col">
         <div className="p-2 border-b border-[#2a2a4a]">
-          <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Objects</span>
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Replaceable</span>
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {objects.map((obj) => (
+          {replaceableTemplates.map((template) => (
             <div
-              key={obj.id}
+              key={template.id}
               className={`px-2 py-1.5 rounded cursor-pointer text-sm flex items-center justify-between group ${
-                selectedObjectId === obj.id ? "bg-[#00d4ff]/20 text-[#00d4ff]" : "text-gray-300 hover:bg-[#2a2a4a]"
+                selectedTemplateId === template.id ? "bg-[#00d4ff]/20 text-[#00d4ff]" : "text-gray-300 hover:bg-[#2a2a4a]"
               }`}
-              onClick={() => onSelectObject(obj.id)}
-              onDoubleClick={() => handleStartEdit(obj)}
+              onClick={() => setSelectedTemplateId(template.id)}
             >
-              {editingObjectId === obj.id ? (
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  onBlur={handleSaveEdit}
-                  onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
-                  className="bg-transparent border-b border-[#00d4ff] outline-none w-full text-sm"
-                  autoFocus
-                />
-              ) : (
-                <>
-                  <span className="truncate">- {obj.name}</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onDeleteObject(obj.id)
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-400"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </>
-              )}
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="truncate font-medium">{template.title}</span>
+                {template.description && (
+                  <span className="truncate text-xs text-gray-500">{template.description}</span>
+                )}
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDeleteReplaceableTemplate(template.id)
+                  if (selectedTemplateId === template.id) {
+                    setSelectedTemplateId(null)
+                  }
+                }}
+                className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-400 ml-1"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
             </div>
           ))}
+          {replaceableTemplates.length === 0 && (
+            <div className="text-xs text-gray-500 text-center py-2">No templates</div>
+          )}
         </div>
-        <div className="p-2 border-t border-[#2a2a4a]">
+        <div className="p-2 border-t border-[#2a2a4a] space-y-1">
+          <input
+            type="text"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            placeholder="Title..."
+            className="w-full bg-[#0f0f1a] border border-[#2a2a4a] rounded px-2 py-1 text-xs text-white placeholder-gray-500 outline-none focus:border-[#00d4ff]"
+          />
           <div className="flex gap-1">
             <input
               type="text"
-              value={newObjectName}
-              onChange={(e) => setNewObjectName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddObject()}
-              placeholder="New object..."
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddTemplate()}
+              placeholder="Description..."
               className="flex-1 bg-[#0f0f1a] border border-[#2a2a4a] rounded px-2 py-1 text-xs text-white placeholder-gray-500 outline-none focus:border-[#00d4ff]"
             />
             <button
-              onClick={handleAddObject}
-              className="p-1 bg-[#00d4ff] text-black rounded hover:bg-[#00b8e0]"
+              onClick={handleAddTemplate}
+              disabled={!newTitle.trim()}
+              className="p-1 bg-[#00d4ff] text-black rounded hover:bg-[#00b8e0] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-4 h-4" />
             </button>
