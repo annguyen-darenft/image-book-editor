@@ -73,12 +73,14 @@ export interface DbImageObject {
   updated_at: string
 }
 
+export type ReplaceableObjectType = "human" | "animal" | "item"
+
 export interface DbReplaceableTemplate {
   id: string
   book_id: string
   title: string
   description: string | null
-  type: string
+  type: ReplaceableObjectType
   created_at: string
 }
 

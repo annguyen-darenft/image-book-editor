@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react"
 import * as fabric from "fabric"
-import { LayoutPreset, PageData, EditorObject, ObjectSheet, LAYOUT_PRESETS, DbBook, DbImageObject, DbReplaceableTemplate } from "./types"
+import { LayoutPreset, PageData, EditorObject, ObjectSheet, LAYOUT_PRESETS, DbBook, DbImageObject, DbReplaceableTemplate, ReplaceableObjectType } from "./types"
 import { getFirstBook, getBookPages, getPageImageObjects, uploadPageImage, deletePageImageObject, getReplaceableTemplates, createReplaceableTemplate, deleteReplaceableTemplate } from "@/lib/supabase/queries"
 
 export function useImageEditor() {
@@ -652,9 +652,9 @@ if (book) {
   )
 
   const addReplaceableTemplate = useCallback(
-    async (title: string, description: string) => {
+    async (title: string, description: string, type: ReplaceableObjectType) => {
       if (!currentBook) return
-      const template = await createReplaceableTemplate(currentBook.id, title, description)
+      const template = await createReplaceableTemplate(currentBook.id, title, description, type)
       if (template) {
         setReplaceableTemplates((prev) => [...prev, template])
       }

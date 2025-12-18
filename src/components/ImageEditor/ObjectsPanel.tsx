@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from "react"
 import { Plus, Trash2, X } from "lucide-react"
-import { EditorObject, ObjectSheet, DbReplaceableTemplate } from "./types"
+import { EditorObject, ObjectSheet, DbReplaceableTemplate, ReplaceableObjectType } from "./types"
 
 interface ObjectsPanelProps {
   objects: EditorObject[]
@@ -17,7 +17,7 @@ interface ObjectsPanelProps {
   onUpdateSheetImage: (objectId: string, sheetId: string, imageUrl: string) => void
   onUpdateSheetTransform: (objectId: string, sheetId: string, transform: { x?: number; y?: number; width?: number; height?: number }) => void
   replaceableTemplates: DbReplaceableTemplate[]
-  onAddReplaceableTemplate: (title: string, description: string) => void
+  onAddReplaceableTemplate: (title: string, description: string, type: ReplaceableObjectType) => void
   onDeleteReplaceableTemplate: (templateId: string) => void
 }
 
@@ -206,6 +206,7 @@ export function ObjectsPanel({
 }: ObjectsPanelProps) {
   const [newTitle, setNewTitle] = useState("")
   const [newDescription, setNewDescription] = useState("")
+  const [newType, setNewType] = useState<ReplaceableObjectType>("human")
   const [editingObjectId, setEditingObjectId] = useState<string | null>(null)
   const [editName, setEditName] = useState("")
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
@@ -215,7 +216,7 @@ export function ObjectsPanel({
 
   const handleAddTemplate = () => {
     if (newTitle.trim()) {
-      onAddReplaceableTemplate(newTitle.trim(), newDescription.trim())
+      onAddReplaceableTemplate(newTitle.trim(), newDescription.trim(), newType)
       setNewTitle("")
       setNewDescription("")
     }
@@ -250,7 +251,12 @@ export function ObjectsPanel({
               onClick={() => setSelectedTemplateId(template.id)}
             >
               <div className="flex flex-col flex-1 min-w-0">
-                <span className="truncate font-medium">{template.title}</span>
+                <div className="flex items-center gap-2">
+                  <span className="truncate font-medium">{template.title}</span>
+                  <span className="text-[10px] px-1 bg-[#2a2a4a] text-gray-400 rounded uppercase">
+                    {template.type}
+                  </span>
+                </div>
                 {template.description && (
                   <span className="truncate text-xs text-gray-500">{template.description}</span>
                 )}
@@ -274,13 +280,24 @@ export function ObjectsPanel({
           )}
         </div>
         <div className="p-2 border-t border-[#2a2a4a] space-y-1">
-          <input
-            type="text"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            placeholder="Title..."
-            className="w-full bg-[#0f0f1a] border border-[#2a2a4a] rounded px-2 py-1 text-xs text-white placeholder-gray-500 outline-none focus:border-[#00d4ff]"
-          />
+          <div className="flex gap-1">
+            <input
+              type="text"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder="Title..."
+              className="flex-1 bg-[#0f0f1a] border border-[#2a2a4a] rounded px-2 py-1 text-xs text-white placeholder-gray-500 outline-none focus:border-[#00d4ff]"
+            />
+            <select
+              value={newType}
+              onChange={(e) => setNewType(e.target.value as ReplaceableObjectType)}
+              className="bg-[#0f0f1a] border border-[#2a2a4a] rounded px-1 py-1 text-[10px] text-white outline-none focus:border-[#00d4ff] appearance-none cursor-pointer"
+            >
+              <option value="human">Human</option>
+              <option value="animal">Animal</option>
+              <option value="item">Item</option>
+            </select>
+          </div>
           <div className="flex gap-1">
             <input
               type="text"

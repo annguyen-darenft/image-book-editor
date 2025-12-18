@@ -1,5 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr"
-import { DbBook, DbPage, DbImageObject, DbReplaceableTemplate, LayoutPreset } from "@/components/ImageEditor/types"
+import { DbBook, DbPage, DbImageObject, DbReplaceableTemplate, LayoutPreset, ReplaceableObjectType } from "@/components/ImageEditor/types"
 
 function getSupabaseClient() {
   return createBrowserClient(
@@ -206,7 +206,8 @@ export async function getReplaceableTemplates(bookId: string): Promise<DbReplace
 export async function createReplaceableTemplate(
   bookId: string,
   title: string,
-  description: string
+  description: string,
+  type: ReplaceableObjectType
 ): Promise<DbReplaceableTemplate | null> {
   const supabase = getSupabaseClient()
   const { data, error } = await supabase
@@ -215,7 +216,7 @@ export async function createReplaceableTemplate(
       book_id: bookId,
       title,
       description: description || null,
-      type: "custom",
+      type,
     })
     .select()
     .single()
