@@ -2,7 +2,13 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+First, create `.env` file and fill all environment:
+
+```bash
+cp .env.example .env
+```
+
+Run the development server:
 
 ```bash
 bun install
