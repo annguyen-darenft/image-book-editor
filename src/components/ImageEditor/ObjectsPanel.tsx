@@ -1,27 +1,59 @@
-"use client"
+"use client";
 
-import { useRef, useEffect, useState, useCallback } from "react"
-import { Plus, Trash2, X, Scan, Loader2 } from "lucide-react"
-import { EditorObject, ObjectSheet, DbReplaceableTemplate, ReplaceableObjectType, DbImageObject } from "./types"
+import { useRef, useEffect, useState, useCallback } from "react";
+import { Plus, Trash2, X, Scan, Loader2, Save } from "lucide-react";
+import {
+  EditorObject,
+  ObjectSheet,
+  DbReplaceableTemplate,
+  ReplaceableObjectType,
+  DbImageObject,
+  DetectedBoundingBox,
+} from "./types";
 
 interface ObjectsPanelProps {
-  objects: EditorObject[]
-  selectedObjectId: string | null
-  onAddObject: (name: string) => void
-  onDeleteObject: (objectId: string) => void
-  onSelectObject: (objectId: string) => void
-  onRenameObject: (objectId: string, newName: string) => void
-  onAddSheet: (objectId: string) => void
-  onDeleteSheet: (objectId: string, sheetId: string) => void
-  onSetActiveSheet: (objectId: string, sheetIndex: number) => void
-  onUpdateSheetImage: (objectId: string, sheetId: string, imageUrl: string) => void
-  onUpdateSheetTransform: (objectId: string, sheetId: string, transform: { x?: number; y?: number; width?: number; height?: number }) => void
-  replaceableTemplates: DbReplaceableTemplate[]
-  onAddReplaceableTemplate: (title: string, description: string, type: ReplaceableObjectType) => void
-  onDeleteReplaceableTemplate: (templateId: string) => void
-  currentPageObjects: DbImageObject[]
-  currentPageOriginalImage: string | null
-  onDetectBoundingBoxes: (boundingBoxes: { label: string; type: string; box_2d: number[] }[]) => void
+  objects: EditorObject[];
+  selectedObjectId: string | null;
+  onAddObject: (name: string) => void;
+  onDeleteObject: (objectId: string) => void;
+  onSelectObject: (objectId: string) => void;
+  onRenameObject: (objectId: string, newName: string) => void;
+  onAddSheet: (objectId: string) => void;
+  onDeleteSheet: (objectId: string, sheetId: string) => void;
+  onSetActiveSheet: (objectId: string, sheetIndex: number) => void;
+  onUpdateSheetImage: (
+    objectId: string,
+    sheetId: string,
+    imageUrl: string
+  ) => void;
+  onUpdateSheetTransform: (
+    objectId: string,
+    sheetId: string,
+    transform: { x?: number; y?: number; width?: number; height?: number }
+  ) => void;
+  replaceableTemplates: DbReplaceableTemplate[];
+  onAddReplaceableTemplate: (
+    title: string,
+    description: string,
+    type: ReplaceableObjectType
+  ) => void;
+  onDeleteReplaceableTemplate: (templateId: string) => void;
+  currentPageObjects: DbImageObject[];
+  currentPageOriginalImage: string | null;
+  onDetectBoundingBoxes: (
+    boundingBoxes: {
+      title: string;
+      type: string;
+      position: { x: number; y: number };
+      size: { w: number; h: number };
+    }[]
+  ) => void;
+  detectedBoundingBoxes: DetectedBoundingBox[];
+  selectedBoundingBoxId: string | null;
+  onSelectBoundingBox: (boxId: string) => void;
+  onDeleteBoundingBox: (boxId: string) => void;
+  onUpdateBoundingBox: (boxId: string, title: string, type: string) => void;
+  onSaveAllBoundingBoxes: () => Promise<boolean>;
 }
 
 function SheetCanvasEditor({
@@ -30,82 +62,111 @@ function SheetCanvasEditor({
   onUpdateSheetImage,
   onUpdateSheetTransform,
 }: {
-  sheet: ObjectSheet
-  objectId: string
-  onUpdateSheetImage: (objectId: string, sheetId: string, imageUrl: string) => void
-  onUpdateSheetTransform: (objectId: string, sheetId: string, transform: { x?: number; y?: number; width?: number; height?: number }) => void
+  sheet: ObjectSheet;
+  objectId: string;
+  onUpdateSheetImage: (
+    objectId: string,
+    sheetId: string,
+    imageUrl: string
+  ) => void;
+  onUpdateSheetTransform: (
+    objectId: string,
+    sheetId: string,
+    transform: { x?: number; y?: number; width?: number; height?: number }
+  ) => void;
 }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [isDragging, setIsDragging] = useState(false)
-  const [isResizing, setIsResizing] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  const [image, setImage] = useState<HTMLImageElement | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const canvasWidth = 200
-  const canvasHeight = 200
+  const canvasWidth = 200;
+  const canvasHeight = 200;
 
   useEffect(() => {
     if (sheet.imageUrl) {
-      const img = new Image()
-      img.src = sheet.imageUrl
-      img.onload = () => setImage(img)
+      const img = new Image();
+      img.src = sheet.imageUrl;
+      img.onload = () => setImage(img);
     } else {
-      setImage(null)
+      setImage(null);
     }
-  }, [sheet.imageUrl])
+  }, [sheet.imageUrl]);
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    ctx.fillStyle = "#1a1a2e"
-    ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+    ctx.fillStyle = "#1a1a2e";
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    ctx.strokeStyle = "#333"
-    ctx.lineWidth = 1
+    ctx.strokeStyle = "#333";
+    ctx.lineWidth = 1;
     for (let i = 0; i < canvasWidth; i += 20) {
-      ctx.beginPath()
-      ctx.moveTo(i, 0)
-      ctx.lineTo(i, canvasHeight)
-      ctx.stroke()
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i, canvasHeight);
+      ctx.stroke();
     }
     for (let i = 0; i < canvasHeight; i += 20) {
-      ctx.beginPath()
-      ctx.moveTo(0, i)
-      ctx.lineTo(canvasWidth, i)
-      ctx.stroke()
+      ctx.beginPath();
+      ctx.moveTo(0, i);
+      ctx.lineTo(canvasWidth, i);
+      ctx.stroke();
     }
 
     if (image) {
-      ctx.drawImage(image, sheet.imageX, sheet.imageY, sheet.imageWidth, sheet.imageHeight)
+      ctx.drawImage(
+        image,
+        sheet.imageX,
+        sheet.imageY,
+        sheet.imageWidth,
+        sheet.imageHeight
+      );
 
-      ctx.strokeStyle = "#00d4ff"
-      ctx.lineWidth = 2
-      ctx.strokeRect(sheet.imageX, sheet.imageY, sheet.imageWidth, sheet.imageHeight)
+      ctx.strokeStyle = "#00d4ff";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(
+        sheet.imageX,
+        sheet.imageY,
+        sheet.imageWidth,
+        sheet.imageHeight
+      );
 
-      ctx.fillStyle = "#00d4ff"
-      ctx.fillRect(sheet.imageX + sheet.imageWidth - 6, sheet.imageY + sheet.imageHeight - 6, 12, 12)
+      ctx.fillStyle = "#00d4ff";
+      ctx.fillRect(
+        sheet.imageX + sheet.imageWidth - 6,
+        sheet.imageY + sheet.imageHeight - 6,
+        12,
+        12
+      );
     }
-  }, [image, sheet.imageX, sheet.imageY, sheet.imageWidth, sheet.imageHeight])
+  }, [image, sheet.imageX, sheet.imageY, sheet.imageWidth, sheet.imageHeight]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (!image) return
-    const rect = canvasRef.current?.getBoundingClientRect()
-    if (!rect) return
+    if (!image) return;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
 
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
-    const resizeX = sheet.imageX + sheet.imageWidth - 6
-    const resizeY = sheet.imageY + sheet.imageHeight - 6
-    if (x >= resizeX && x <= resizeX + 12 && y >= resizeY && y <= resizeY + 12) {
-      setIsResizing(true)
-      setDragStart({ x, y })
-      return
+    const resizeX = sheet.imageX + sheet.imageWidth - 6;
+    const resizeY = sheet.imageY + sheet.imageHeight - 6;
+    if (
+      x >= resizeX &&
+      x <= resizeX + 12 &&
+      y >= resizeY &&
+      y <= resizeY + 12
+    ) {
+      setIsResizing(true);
+      setDragStart({ x, y });
+      return;
     }
 
     if (
@@ -114,48 +175,62 @@ function SheetCanvasEditor({
       y >= sheet.imageY &&
       y <= sheet.imageY + sheet.imageHeight
     ) {
-      setIsDragging(true)
-      setDragStart({ x: x - sheet.imageX, y: y - sheet.imageY })
+      setIsDragging(true);
+      setDragStart({ x: x - sheet.imageX, y: y - sheet.imageY });
     }
-  }
+  };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging && !isResizing) return
-    const rect = canvasRef.current?.getBoundingClientRect()
-    if (!rect) return
+    if (!isDragging && !isResizing) return;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
 
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
     if (isDragging) {
-      const newX = Math.max(0, Math.min(canvasWidth - sheet.imageWidth, x - dragStart.x))
-      const newY = Math.max(0, Math.min(canvasHeight - sheet.imageHeight, y - dragStart.y))
-      onUpdateSheetTransform(objectId, sheet.id, { x: newX, y: newY })
+      const newX = Math.max(
+        0,
+        Math.min(canvasWidth - sheet.imageWidth, x - dragStart.x)
+      );
+      const newY = Math.max(
+        0,
+        Math.min(canvasHeight - sheet.imageHeight, y - dragStart.y)
+      );
+      onUpdateSheetTransform(objectId, sheet.id, { x: newX, y: newY });
     } else if (isResizing) {
-      const newWidth = Math.max(20, x - sheet.imageX)
-      const newHeight = Math.max(20, y - sheet.imageY)
-      onUpdateSheetTransform(objectId, sheet.id, { width: newWidth, height: newHeight })
+      const newWidth = Math.max(20, x - sheet.imageX);
+      const newHeight = Math.max(20, y - sheet.imageY);
+      onUpdateSheetTransform(objectId, sheet.id, {
+        width: newWidth,
+        height: newHeight,
+      });
     }
-  }
+  };
 
   const handleMouseUp = () => {
-    setIsDragging(false)
-    setIsResizing(false)
-  }
+    setIsDragging(false);
+    setIsResizing(false);
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    const reader = new FileReader()
+    const reader = new FileReader();
     reader.onload = (event) => {
-      const imageUrl = event.target?.result as string
-      onUpdateSheetImage(objectId, sheet.id, imageUrl)
-      onUpdateSheetTransform(objectId, sheet.id, { x: 20, y: 20, width: 160, height: 160 })
-    }
-    reader.readAsDataURL(file)
-    e.target.value = ""
-  }
+      const imageUrl = event.target?.result as string;
+      onUpdateSheetImage(objectId, sheet.id, imageUrl);
+      onUpdateSheetTransform(objectId, sheet.id, {
+        x: 20,
+        y: 20,
+        width: 160,
+        height: 160,
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
 
   return (
     <div ref={containerRef} className="relative">
@@ -188,7 +263,7 @@ function SheetCanvasEditor({
         onChange={handleFileUpload}
       />
     </div>
-  )
+  );
 }
 
 export function ObjectsPanel({
@@ -209,94 +284,134 @@ export function ObjectsPanel({
   currentPageObjects,
   currentPageOriginalImage,
   onDetectBoundingBoxes,
+  detectedBoundingBoxes,
+  selectedBoundingBoxId,
+  onSelectBoundingBox,
+  onDeleteBoundingBox,
+  onUpdateBoundingBox,
+  onSaveAllBoundingBoxes,
 }: ObjectsPanelProps) {
-  const [newTitle, setNewTitle] = useState("")
-  const [newDescription, setNewDescription] = useState("")
-  const [newType, setNewType] = useState<ReplaceableObjectType>("human")
-  const [editingObjectId, setEditingObjectId] = useState<string | null>(null)
-  const [editName, setEditName] = useState("")
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
-  const [isDetecting, setIsDetecting] = useState(false)
+  const [newTitle, setNewTitle] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newType, setNewType] = useState<ReplaceableObjectType>("human");
+  const [editingObjectId, setEditingObjectId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
+    null
+  );
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [activeTab, setActiveTab] = useState<"boundingBoxes" | "objects">(
+    "boundingBoxes"
+  );
 
-  const selectedObject = objects.find((o) => o.id === selectedObjectId)
-  const selectedTemplate = replaceableTemplates.find((t) => t.id === selectedTemplateId)
+  // Bounding box editing state
+  const [editingBoxTitle, setEditingBoxTitle] = useState("");
+  const [editingBoxType, setEditingBoxType] = useState("");
+  const [isSavingBoxes, setIsSavingBoxes] = useState(false);
+
+  const selectedObject = objects.find((o) => o.id === selectedObjectId);
+  const selectedTemplate = replaceableTemplates.find(
+    (t) => t.id === selectedTemplateId
+  );
+
+  // Update form when a bounding box is selected
+  useEffect(() => {
+    const selectedBox = detectedBoundingBoxes.find(
+      (b) => b.id === selectedBoundingBoxId
+    );
+    if (selectedBox) {
+      setEditingBoxTitle(selectedBox.title || "");
+      setEditingBoxType(selectedBox.type || "human");
+    }
+  }, [selectedBoundingBoxId, detectedBoundingBoxes]);
 
   const matchingPageObjects = (currentPageObjects || []).filter((pageObj) =>
     replaceableTemplates.some(
-      (template) => template.title.toLowerCase() === pageObj.title?.toLowerCase()
+      (template) =>
+        template.title.toLowerCase() === pageObj.title?.toLowerCase()
     )
-  )
+  );
 
   const handleDetectBoundingBoxes = async () => {
-    if (!currentPageOriginalImage || replaceableTemplates.length === 0) return
+    if (!currentPageOriginalImage || replaceableTemplates.length === 0) return;
 
-    setIsDetecting(true)
+    setIsDetecting(true);
     try {
-      const response = await fetch(currentPageOriginalImage)
-      const blob = await response.blob()
-      const file = new File([blob], "image.png", { type: blob.type })
-
-      const formData = new FormData()
-      formData.append("image", file)
-      formData.append("objects", JSON.stringify(
-        replaceableTemplates.map((t) => ({
-          title: t.title,
-          description: t.description || "",
-          type: t.type,
-        }))
-      ))
-
       const detectResponse = await fetch("/api/detect-bounding-boxes", {
         method: "POST",
-        body: formData,
-      })
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          image_url: currentPageOriginalImage,
+          objects: replaceableTemplates.map((t) => ({
+            title: t.title,
+            description: t.description || "",
+            type: t.type,
+          })),
+        }),
+      });
 
       if (!detectResponse.ok) {
-        throw new Error("Failed to detect bounding boxes")
+        throw new Error("Failed to detect bounding boxes");
       }
 
-      const data = await detectResponse.json()
-      onDetectBoundingBoxes(data.boundingBoxes)
+      const data = await detectResponse.json();
+      onDetectBoundingBoxes(data.boundingBoxes);
     } catch (error) {
-      console.error("Error detecting bounding boxes:", error)
+      console.error("Error detecting bounding boxes:", error);
     } finally {
-      setIsDetecting(false)
+      setIsDetecting(false);
     }
-  }
+  };
 
   const handleAddTemplate = () => {
     if (newTitle.trim()) {
-      onAddReplaceableTemplate(newTitle.trim(), newDescription.trim(), newType)
-      setNewTitle("")
-      setNewDescription("")
+      onAddReplaceableTemplate(newTitle.trim(), newDescription.trim(), newType);
+      setNewTitle("");
+      setNewDescription("");
     }
-  }
+  };
+
+  const handleUpdateBoundingBox = () => {
+    if (selectedBoundingBoxId && editingBoxTitle.trim()) {
+      onUpdateBoundingBox(
+        selectedBoundingBoxId,
+        editingBoxTitle.trim(),
+        editingBoxType
+      );
+    }
+  };
 
   const handleStartEdit = (obj: EditorObject) => {
-    setEditingObjectId(obj.id)
-    setEditName(obj.name)
-  }
+    setEditingObjectId(obj.id);
+    setEditName(obj.name);
+  };
 
   const handleSaveEdit = () => {
     if (editingObjectId && editName.trim()) {
-      onRenameObject(editingObjectId, editName.trim())
+      onRenameObject(editingObjectId, editName.trim());
     }
-    setEditingObjectId(null)
-    setEditName("")
-  }
+    setEditingObjectId(null);
+    setEditName("");
+  };
 
   return (
     <div className="h-64 bg-[#1a1a2e] border-t border-[#2a2a4a] flex">
       <div className="w-56 border-r border-[#2a2a4a] flex flex-col">
         <div className="p-2 border-b border-[#2a2a4a]">
-          <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Replaceable</span>
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
+            Replaceable
+          </span>
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {replaceableTemplates.map((template) => (
             <div
               key={template.id}
               className={`px-2 py-1.5 rounded cursor-pointer text-sm flex items-center justify-between group ${
-                selectedTemplateId === template.id ? "bg-[#00d4ff]/20 text-[#00d4ff]" : "text-gray-300 hover:bg-[#2a2a4a]"
+                selectedTemplateId === template.id
+                  ? "bg-[#00d4ff]/20 text-[#00d4ff]"
+                  : "text-gray-300 hover:bg-[#2a2a4a]"
               }`}
               onClick={() => setSelectedTemplateId(template.id)}
             >
@@ -308,15 +423,17 @@ export function ObjectsPanel({
                   </span>
                 </div>
                 {template.description && (
-                  <span className="truncate text-xs text-gray-500">{template.description}</span>
+                  <span className="truncate text-xs text-gray-500">
+                    {template.description}
+                  </span>
                 )}
               </div>
               <button
                 onClick={(e) => {
-                  e.stopPropagation()
-                  onDeleteReplaceableTemplate(template.id)
+                  e.stopPropagation();
+                  onDeleteReplaceableTemplate(template.id);
                   if (selectedTemplateId === template.id) {
-                    setSelectedTemplateId(null)
+                    setSelectedTemplateId(null);
                   }
                 }}
                 className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-400 ml-1"
@@ -326,7 +443,9 @@ export function ObjectsPanel({
             </div>
           ))}
           {replaceableTemplates.length === 0 && (
-            <div className="text-xs text-gray-500 text-center py-2">No templates</div>
+            <div className="text-xs text-gray-500 text-center py-2">
+              No templates
+            </div>
           )}
         </div>
         <div className="p-2 border-t border-[#2a2a4a] space-y-1">
@@ -340,7 +459,9 @@ export function ObjectsPanel({
             />
             <select
               value={newType}
-              onChange={(e) => setNewType(e.target.value as ReplaceableObjectType)}
+              onChange={(e) =>
+                setNewType(e.target.value as ReplaceableObjectType)
+              }
               className="bg-[#0f0f1a] border border-[#2a2a4a] rounded px-1 py-1 text-[10px] text-white outline-none focus:border-[#00d4ff] appearance-none cursor-pointer"
             >
               <option value="human">Human</option>
@@ -372,7 +493,9 @@ export function ObjectsPanel({
         <>
           <div className="w-28 border-r border-[#2a2a4a] flex flex-col">
             <div className="p-2 border-b border-[#2a2a4a] flex items-center justify-between">
-              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Sheets</span>
+              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
+                Sheets
+              </span>
               <button
                 onClick={() => onAddSheet(selectedObject.id)}
                 className="p-0.5 text-gray-400 hover:text-[#00d4ff]"
@@ -385,15 +508,17 @@ export function ObjectsPanel({
                 <div
                   key={sheet.id}
                   className={`px-2 py-1.5 rounded cursor-pointer text-sm flex items-center justify-between group ${
-                    selectedObject.activeSheetIndex === idx ? "bg-[#00d4ff]/20 text-[#00d4ff]" : "text-gray-300 hover:bg-[#2a2a4a]"
+                    selectedObject.activeSheetIndex === idx
+                      ? "bg-[#00d4ff]/20 text-[#00d4ff]"
+                      : "text-gray-300 hover:bg-[#2a2a4a]"
                   }`}
                   onClick={() => onSetActiveSheet(selectedObject.id, idx)}
                 >
                   <span>Sheet {idx + 1}</span>
                   <button
                     onClick={(e) => {
-                      e.stopPropagation()
-                      onDeleteSheet(selectedObject.id, sheet.id)
+                      e.stopPropagation();
+                      onDeleteSheet(selectedObject.id, sheet.id);
                     }}
                     className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-400"
                   >
@@ -402,7 +527,9 @@ export function ObjectsPanel({
                 </div>
               ))}
               {selectedObject.sheets.length === 0 && (
-                <div className="text-xs text-gray-500 text-center py-2">No sheets</div>
+                <div className="text-xs text-gray-500 text-center py-2">
+                  No sheets
+                </div>
               )}
             </div>
           </div>
@@ -427,55 +554,231 @@ export function ObjectsPanel({
 
       {!selectedObject && (
         <div className="flex-1 flex flex-col border-r border-[#2a2a4a]">
-          <div className="p-2 border-b border-[#2a2a4a]">
-            <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Page Objects</span>
+          {/* Tab Headers */}
+          <div className="flex border-b border-[#2a2a4a]">
+            <button
+              onClick={() => setActiveTab("boundingBoxes")}
+              className={`flex-1 px-3 py-2 text-xs font-medium uppercase tracking-wider transition-colors ${
+                activeTab === "boundingBoxes"
+                  ? "bg-[#2a2a4a] text-[#00d4ff] border-b-2 border-[#00d4ff]"
+                  : "text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              Bounding Boxes
+            </button>
+            <button
+              onClick={() => setActiveTab("objects")}
+              className={`flex-1 px-3 py-2 text-xs font-medium uppercase tracking-wider transition-colors ${
+                activeTab === "objects"
+                  ? "bg-[#2a2a4a] text-[#00d4ff] border-b-2 border-[#00d4ff]"
+                  : "text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              Objects
+            </button>
           </div>
-          <div className="flex-1 overflow-y-auto p-2">
-            {matchingPageObjects.length > 0 ? (
-              <div className="space-y-1">
-                {matchingPageObjects.map((obj) => (
-                  <div
-                    key={obj.id}
-                    className="px-2 py-1.5 rounded text-sm text-gray-300 hover:bg-[#2a2a4a] cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="truncate font-medium">{obj.title}</span>
-                      <span className="text-[10px] px-1 bg-[#2a2a4a] text-gray-400 rounded uppercase">
-                        {obj.type}
-                      </span>
+
+          {/* Tab Content */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {activeTab === "boundingBoxes" ? (
+              // Bounding Boxes Tab
+              <>
+                <div className="flex-1 overflow-y-auto p-2">
+                  {detectedBoundingBoxes.length > 0 ? (
+                    <div className="space-y-1">
+                      {detectedBoundingBoxes.map((box) => {
+                        const isSelected = selectedBoundingBoxId === box.id;
+                        return (
+                          <div
+                            key={box.id}
+                            onClick={() => onSelectBoundingBox(box.id)}
+                            className={`px-2 py-1.5 rounded text-sm cursor-pointer transition-colors group ${
+                              isSelected
+                                ? "bg-[#00d4ff]/20 text-[#00d4ff]"
+                                : "text-gray-300 hover:bg-[#2a2a4a]"
+                            }`}
+                          >
+                            {isSelected ? (
+                              // Edit mode
+                              <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={editingBoxTitle}
+                                    onChange={(e) =>
+                                      setEditingBoxTitle(e.target.value)
+                                    }
+                                    onClick={(e) => e.stopPropagation()}
+                                    placeholder="Title..."
+                                    className="flex-1 bg-[#0f0f1a] border border-[#2a2a4a] rounded px-2 py-1 text-[11px] text-white placeholder-gray-500 outline-none focus:border-[#00d4ff]"
+                                  />
+                                  <select
+                                    value={editingBoxType}
+                                    onChange={(e) => {
+                                      setEditingBoxType(e.target.value);
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="bg-[#0f0f1a] border border-[#2a2a4a] rounded px-2 py-1 text-[11px] text-white outline-none focus:border-[#00d4ff] appearance-none cursor-pointer"
+                                  >
+                                    <option value="human">Human</option>
+                                    <option value="animal">Animal</option>
+                                    <option value="item">Item</option>
+                                  </select>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleUpdateBoundingBox();
+                                    }}
+                                    className="p-0.5 py-2 hover:text-green-400"
+                                  >
+                                    <Save className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onDeleteBoundingBox(box.id);
+                                    }}
+                                    className="p-0.5 hover:text-red-400"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Pos: ({Math.round(box.position.x)},{" "}
+                                  {Math.round(box.position.y)}) Size:{" "}
+                                  {Math.round(box.size.w)}×
+                                  {Math.round(box.size.h)}
+                                </div>
+                              </div>
+                            ) : (
+                              // View mode
+                              <div className="flex items-center justify-between">
+                                <div className="flex flex-col flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="truncate font-medium">
+                                      {box.title}
+                                    </span>
+                                    <span className="text-[10px] px-1 bg-[#2a2a4a] text-gray-400 rounded uppercase">
+                                      {box.type}
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    Pos: ({Math.round(box.position.x)},{" "}
+                                    {Math.round(box.position.y)}) Size:{" "}
+                                    {Math.round(box.size.w)}×
+                                    {Math.round(box.size.h)}
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDeleteBoundingBox(box.id);
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-400 ml-1"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full gap-3">
+                      <span className="text-xs text-gray-500 text-center">
+                        No bounding boxes found
+                      </span>
+                      {currentPageOriginalImage &&
+                        replaceableTemplates.length > 0 && (
+                          <button
+                            onClick={handleDetectBoundingBoxes}
+                            disabled={isDetecting}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-[#00d4ff] text-black rounded text-xs font-medium hover:bg-[#00b8e0] disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isDetecting ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Detecting...
+                              </>
+                            ) : (
+                              <>
+                                <Scan className="w-4 h-4" />
+                                Detect by AI
+                              </>
+                            )}
+                          </button>
+                        )}
+                      {!currentPageOriginalImage && (
+                        <span className="text-[10px] text-gray-600">
+                          Upload an image first
+                        </span>
+                      )}
+                      {replaceableTemplates.length === 0 && (
+                        <span className="text-[10px] text-gray-600">
+                          Add replaceable templates first
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {/* Save & Crop Button */}
+                {detectedBoundingBoxes.length > 0 && (
+                  <div className="p-2 border-t border-[#2a2a4a] bg-[#1a1a2e]">
+                    <button
+                      onClick={async () => {
+                        setIsSavingBoxes(true);
+                        const success = await onSaveAllBoundingBoxes();
+                        setIsSavingBoxes(false);
+                        if (success) {
+                          console.log("Bounding boxes saved successfully");
+                        }
+                      }}
+                      disabled={isSavingBoxes}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-[#00d4ff] text-black rounded text-sm font-medium hover:bg-[#00b8e0] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isSavingBoxes ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          Save & Crop
+                        </>
+                      )}
+                    </button>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full gap-3">
-                <span className="text-xs text-gray-500 text-center">
-                  No matching objects found
-                </span>
-                {currentPageOriginalImage && replaceableTemplates.length > 0 && (
-                  <button
-                    onClick={handleDetectBoundingBoxes}
-                    disabled={isDetecting}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-[#00d4ff] text-black rounded text-xs font-medium hover:bg-[#00b8e0] disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isDetecting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Detecting...
-                      </>
-                    ) : (
-                      <>
-                        <Scan className="w-4 h-4" />
-                        Detect Replaceable
-                      </>
-                    )}
-                  </button>
-                )}
-                {!currentPageOriginalImage && (
-                  <span className="text-[10px] text-gray-600">Upload an image first</span>
-                )}
-                {replaceableTemplates.length === 0 && (
-                  <span className="text-[10px] text-gray-600">Add replaceable templates first</span>
+              // Objects Tab
+              <div className="flex-1 overflow-y-auto p-2">
+                {matchingPageObjects.length > 0 ? (
+                  <div className="space-y-1">
+                    {matchingPageObjects.map((obj) => (
+                      <div
+                        key={obj.id}
+                        className="px-2 py-1.5 rounded text-sm text-gray-300 hover:bg-[#2a2a4a] cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="truncate font-medium">
+                            {obj.title}
+                          </span>
+                          <span className="text-[10px] px-1 bg-[#2a2a4a] text-gray-400 rounded uppercase">
+                            {obj.type}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full gap-3">
+                    <span className="text-xs text-gray-500 text-center">
+                      No matching objects found
+                    </span>
+                  </div>
                 )}
               </div>
             )}
@@ -483,5 +786,5 @@ export function ObjectsPanel({
         </div>
       )}
     </div>
-  )
+  );
 }

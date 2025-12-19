@@ -1,5 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr"
-import { DbBook, DbPage, DbImageObject, DbReplaceableTemplate, LayoutPreset, ReplaceableObjectType } from "@/components/ImageEditor/types"
+import { DbBook, DbPage, DbImageObject, DbReplaceableTemplate, DbBoundingBox, LayoutPreset, ReplaceableObjectType } from "@/components/ImageEditor/types"
 
 function getSupabaseClient() {
   return createBrowserClient(
@@ -73,8 +73,8 @@ export async function uploadPageImage(
 ): Promise<{ imageUrl: string; imageObject: DbImageObject } | null> {
   const supabase = getSupabaseClient()
   
-  const canvasWidth = layout?.width || 2600
-  const canvasHeight = layout?.height || 2600
+  const canvasWidth = layout?.width || 2000
+  const canvasHeight = layout?.height || 2000
   
   let uploadFile: Blob | File = file
   try {
@@ -234,9 +234,95 @@ export async function deleteReplaceableTemplate(templateId: string): Promise<boo
     .from("replaceable_object_templates")
     .delete()
     .eq("id", templateId)
-  
+
   if (error) {
     console.error("Error deleting replaceable template:", error)
+    return false
+  }
+  return true
+}
+
+export async function getPageBoundingBoxes(pageId: string): Promise<DbBoundingBox[]> {
+  const supabase = getSupabaseClient()
+  const { data, error } = await supabase
+    .from("page_bounding_boxes")
+    .select("*")
+    .eq("page_id", pageId)
+    .order("created_at", { ascending: true })
+
+  if (error) {
+    console.error("Error fetching page bounding boxes:", error)
+    return []
+  }
+  return data || []
+}
+
+export async function saveBoundingBox(
+  pageId: string,
+  title: string,
+  type: string,
+  boundingInfo: { position: { x: number; y: number }; size: { w: number; h: number } }
+): Promise<DbBoundingBox | null> {
+  const supabase = getSupabaseClient()
+
+  // Check if a bounding box with this title already exists for this page
+  const { data: existing } = await supabase
+    .from("page_bounding_boxes")
+    .select("id")
+    .eq("page_id", pageId)
+    .eq("title", title)
+    .single()
+
+  if (existing) {
+    // Update existing
+    const { data, error } = await supabase
+      .from("page_bounding_boxes")
+      .update({
+        type,
+        bounding_info: boundingInfo,
+      })
+      .eq("id", existing.id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Error updating bounding box:", error)
+      return null
+    }
+    return data
+  } else {
+    // Insert new
+    const { data, error } = await supabase
+      .from("page_bounding_boxes")
+      .insert({
+        page_id: pageId,
+        title,
+        type,
+        bounding_info: boundingInfo,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Error creating bounding box:", error)
+      return null
+    }
+    return data
+  }
+}
+
+export async function updatePageStatus(
+  pageId: string,
+  status: "pending" | "processing" | "complete"
+): Promise<boolean> {
+  const supabase = getSupabaseClient()
+  const { error } = await supabase
+    .from("pages")
+    .update({ status })
+    .eq("id", pageId)
+
+  if (error) {
+    console.error("Error updating page status:", error)
     return false
   }
   return true

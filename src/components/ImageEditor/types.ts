@@ -83,6 +83,21 @@ export interface DetectedBoundingBox {
   type: string
   position: { x: number; y: number }
   size: { w: number; h: number }
+  color: string
+}
+
+export interface DbBoundingBox {
+  id: string
+  page_id: string
+  title: string
+  type: ReplaceableObjectType
+  bounding_info: {
+    position: { x: number; y: number }
+    size: { w: number; h: number }
+  }
+  metadata: Record<string, unknown> | null
+  created_at: string
+  updated_at: string
 }
 
 export interface DbReplaceableTemplate {
@@ -95,6 +110,6 @@ export interface DbReplaceableTemplate {
 }
 
 export const LAYOUT_PRESETS: LayoutPreset[] = [
-  { name: "Square", width: 2600, height: 2600 },
-  { name: "Landscape", width: 5200, height: 2600 },
+  { name: "Square", width: 2000, height: 2000 },
+  { name: "Landscape", width: 4000, height: 2000 },
 ]

@@ -5,6 +5,7 @@ import { PagesSidebar } from "./PagesSidebar"
 import { ObjectsSidebar } from "./LayersSidebar"
 import { ObjectsPanel } from "./ObjectsPanel"
 import { CanvasArea } from "./CanvasArea"
+import { ToolsBar } from "./ToolsBar"
 import { useImageEditor } from "./useImageEditor"
 
 export function ImageEditor() {
@@ -49,6 +50,15 @@ export function ImageEditor() {
     removeReplaceableTemplate,
     currentPageOriginalImage,
     handleDetectBoundingBoxes,
+    detectedBoundingBoxes,
+    selectedBoundingBoxId,
+    selectBoundingBox,
+    deleteBoundingBox,
+    isDrawingMode,
+    toggleDrawingMode,
+    clearAllBoundingBoxes,
+    updateBoundingBox,
+    saveAllBoundingBoxesAndProcess,
   } = useImageEditor()
 
   const triggerUpload = () => {
@@ -77,6 +87,12 @@ export function ImageEditor() {
           onNextPage={goToNextPage}
         />
           <div className="flex flex-col flex-1 min-w-0">
+            <ToolsBar
+              isDrawingMode={isDrawingMode}
+              onToggleDrawingMode={toggleDrawingMode}
+              onClearAllBoundingBoxes={clearAllBoundingBoxes}
+              hasBoundingBoxes={detectedBoundingBoxes.length > 0}
+            />
             <CanvasArea 
               containerRef={containerRef} 
               canvasRef={canvasRef}
@@ -102,6 +118,12 @@ export function ImageEditor() {
               currentPageObjects={currentPageObjects}
               currentPageOriginalImage={currentPageOriginalImage}
               onDetectBoundingBoxes={handleDetectBoundingBoxes}
+              detectedBoundingBoxes={detectedBoundingBoxes}
+              selectedBoundingBoxId={selectedBoundingBoxId}
+              onSelectBoundingBox={selectBoundingBox}
+              onDeleteBoundingBox={deleteBoundingBox}
+              onUpdateBoundingBox={updateBoundingBox}
+              onSaveAllBoundingBoxes={saveAllBoundingBoxesAndProcess}
             />
           </div>
             <ObjectsSidebar
