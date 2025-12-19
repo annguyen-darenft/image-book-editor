@@ -907,7 +907,18 @@ export function useImageEditor() {
 
             const result = await response.json();
             if (result.success && result.image_object) {
-              setCurrentPageObjects((prev) => [...prev, result.image_object]);
+              // Refresh page objects from database
+              const refreshedObjects = await getPageImageObjects(pageDbId);
+              setCurrentPageObjects(refreshedObjects);
+
+              // Update current page's original_image URL
+              setPages((prevPages) =>
+                prevPages.map((p, idx) =>
+                  idx === currentPageIndex
+                    ? { ...p, originalImage: result.image_url }
+                    : p
+                )
+              );
             }
           }
         }
